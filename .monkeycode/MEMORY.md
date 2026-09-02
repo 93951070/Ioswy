@@ -106,3 +106,12 @@ Entries discovered by the Agent during task execution should follow this format:
   - dj/recommend 返回 {djRadios, name, code} 无 hasMore/count；dj/hot、dj/sublist 返回 {djRadios, hasMore, code}；dj/program 返回 {count, code, programs}；dj/detail 返回 {code, msg, data:{...subed 直接在 data 上}}
   - SharedJson.decodeBean 的 fixLegacyFields 会把整棵 JSON 树里所有 duration 键改名为 dt，电台节目(DjProgramData)自身时长字段需用 @SerialName("dt") 接收
   - 工作区存在多 Agent 并行开发：编译失败先看错误归属域，可能是他域在途中间态，等待重试即可；gradle 编译用 --rerun 才能绕过内容哈希 UP-TO-DATE 强制验证
+
+[Project Knowledge Summary]
+- Date: 2026-09-02
+- Context: MV 内嵌播放器 iOS 编译失败排查时发现（本地编译过但云端失败）
+- Category: Build Methods | Environment Configuration
+- Instructions:
+  - 本地是 Linux，KGP 会自动禁用全部 K/N 编译任务（compileKotlinIosSimulatorArm64 显示 SKIPPED, enabled=false）：本地跑 iOS 编译永远假成功，iosMain 代码只有云端 macOS runner 能真验证
+  - iOS 编译错误必须靠云端构建日志定位：下载 run logs zip 后 grep "e: file:"；修完直接推云端验证，本地无 iOS 编译能力
+  - K/N 编写规范（踩坑汇总）：ObjC 框架 import 用通配（platform.AVFoundation.*）；NSURL.URLWithString 可空需判 null 后再传；AVPlayer 调用写顺序语句（apply 嵌套 lambda 会触发类型推断失败）；UIKitView 只用 modifier/factory/update 三参（onRelease 签名跨版本易错），释放用 DisposableEffect
