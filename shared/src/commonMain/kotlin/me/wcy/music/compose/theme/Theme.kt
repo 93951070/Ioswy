@@ -20,6 +20,7 @@ private val LightColors = lightColorScheme(
     onBackground = TextH1,
     surfaceVariant = Grey100,
     onSurfaceVariant = Grey,
+    tertiary = SearchBarBg,
     error = Red500,
     outline = Grey300,
     outlineVariant = Grey100
@@ -38,6 +39,7 @@ private val DarkColors = darkColorScheme(
     onBackground = Color.White,
     surfaceVariant = Grey800,
     onSurfaceVariant = NightTextH2,
+    tertiary = NightSearchBarBg,
     error = Red700,
     outline = Grey800,
     outlineVariant = Grey800
@@ -64,6 +66,9 @@ object AppThemeColor {
 
     val PlayBar
         @Composable get() = MaterialTheme.colorScheme.surface
+
+    val SearchBar
+        @Composable get() = MaterialTheme.colorScheme.tertiary
 }
 
 @Composable

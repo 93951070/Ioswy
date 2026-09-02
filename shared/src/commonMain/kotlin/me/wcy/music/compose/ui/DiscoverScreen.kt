@@ -164,7 +164,7 @@ private fun DiscoverTitleBar(
                 .height(36.dp)
                 .weight(1f)
                 .clip(RoundedCornerShape(18.dp))
-                .background(AppThemeColor.ThemeColor.copy(alpha = 0.1f))
+                .background(AppThemeColor.SearchBar)
                 .clickable(onClick = onOpenSearch),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center

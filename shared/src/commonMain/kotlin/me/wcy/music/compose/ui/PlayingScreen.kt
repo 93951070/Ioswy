@@ -74,6 +74,7 @@ import kotlinx.coroutines.isActive
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.compose.theme.Red500
 import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.player.PlayerEngine
@@ -225,7 +226,7 @@ fun PlayingScreen(
                 }
                 Text(
                     text = "词",
-                    color = if (showCover) Color.White.copy(alpha = 0.7f) else Color(0xFFF44336),
+                    color = if (showCover) Color.White.copy(alpha = 0.7f) else Red500,
                     fontSize = 13.sp,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -603,7 +604,7 @@ private fun ProgressAndControls(
             Icon(
                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 contentDescription = "喜欢",
-                tint = if (isLiked) Color(0xFFF44336) else Color.White,
+                tint = if (isLiked) Red500 else Color.White,
                 modifier = Modifier
                     .size(28.dp)
                     .clickable(onClick = onToggleLike)
