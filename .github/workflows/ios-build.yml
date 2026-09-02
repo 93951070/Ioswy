@@ -26,7 +26,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build shared framework
-        run: ./gradlew :shared:linkReleaseFrameworkIosArm64 --no-daemon
+        run: ./gradlew :shared:linkReleaseFrameworkIosArm64
 
       - name: Build app archive
         run: |
