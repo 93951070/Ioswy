@@ -25,7 +25,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Leaderboard
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
@@ -37,6 +39,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,7 +59,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.common.bean.PlaylistData
+import me.wcy.music.mine.extra.ListenRankScreen
 import me.wcy.music.mine.extra.MineExtraNet
+import me.wcy.music.mine.extra.bean.UserLevelInfo
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.component.PlaylistCard
 import me.wcy.music.compose.theme.AppThemeColor
@@ -97,6 +102,15 @@ fun MineScreen(
     var renameText by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<PlaylistData?>(null) }
     var unsubTarget by remember { mutableStateOf<PlaylistData?>(null) }
+    var showListenRank by remember { mutableStateOf(false) }
+    var showLevelDialog by remember { mutableStateOf(false) }
+    var userLevel by remember { mutableStateOf<UserLevelInfo?>(null) }
+
+    LaunchedEffect(profile?.userId) {
+        if (profile != null) {
+            userLevel = kotlin.runCatching { MineExtraNet.getUserLevel() }.getOrNull()?.data
+        }
+    }
 
     if (showCreateDialog) {
         AlertDialog(
@@ -240,12 +254,70 @@ fun MineScreen(
         )
     }
 
-    LazyColumn(
+    if (showLevelDialog) {
+        AlertDialog(
+            onDismissRequest = { showLevelDialog = false },
+            title = { Text("我的等级") },
+            text = {
+                val level = userLevel
+                if (level == null || level.level <= 0) {
+                    Text("登录后可查看等级信息")
+                } else {
+                    Column {
+                        Text(
+                            text = "当前等级 Lv.${level.level}",
+                            color = AppThemeColor.TextH1,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "成长进度 ${(level.progress * 100).toInt()}%",
+                            color = AppThemeColor.TextH2,
+                            fontSize = 13.sp,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                        if (level.nextPlayCount > level.nowPlayCount) {
+                            Text(
+                                text = "再播放 ${level.nextPlayCount - level.nowPlayCount} 次可升级",
+                                color = AppThemeColor.TextH2,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        if (level.nextLoginCount > level.nowLoginCount) {
+                            Text(
+                                text = "再登录 ${level.nextLoginCount - level.nowLoginCount} 天可升级",
+                                color = AppThemeColor.TextH2,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        if (level.info.isNotBlank()) {
+                            Text(
+                                text = level.info,
+                                color = AppThemeColor.TextH2,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLevelDialog = false }) { Text("知道了") }
+            }
+        )
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(AppThemeColor.Background),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .background(AppThemeColor.Background)
     ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
         item {
             MineTitleBar(
                 onOpenDrawer = onOpenDrawer,
@@ -259,6 +331,9 @@ fun MineScreen(
                 avatarUrl = profile?.avatarUrl ?: "",
                 nickname = profile?.nickname ?: "",
                 signature = profile?.signature ?: "",
+                level = userLevel?.level,
+                signedIn = signedIn,
+                onSignin = onSignin,
                 onOpenLogin = onOpenLogin
             )
         }
@@ -273,7 +348,9 @@ fun MineScreen(
                 onOpenSubList = onOpenSubList,
                 onOpenCloudDisk = onOpenCloudDisk,
                 onOpenMsgCenter = onOpenMsgCenter,
-                onOpenLocalMusic = onOpenLocalMusic
+                onOpenLocalMusic = onOpenLocalMusic,
+                onOpenListenRank = { showListenRank = true },
+                onOpenLevel = { showLevelDialog = true }
             )
         }
 
@@ -342,6 +419,11 @@ fun MineScreen(
                 }
             }
         }
+        }
+
+        if (showListenRank) {
+            ListenRankScreen(onBack = { showListenRank = false })
+        }
     }
 }
 
@@ -382,6 +464,9 @@ private fun ProfileHeader(
     avatarUrl: String,
     nickname: String,
     signature: String,
+    level: Int?,
+    signedIn: Boolean,
+    onSignin: () -> Unit,
     onOpenLogin: () -> Unit
 ) {
     if (isLoggedIn) {
@@ -404,14 +489,31 @@ private fun ProfileHeader(
                     .weight(1f)
                     .padding(start = 16.dp)
             ) {
-                Text(
-                    text = nickname,
-                    color = AppThemeColor.TextH1,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = nickname,
+                        color = AppThemeColor.TextH1,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    if (level != null && level > 0) {
+                        Text(
+                            text = "Lv.$level",
+                            color = AppThemeColor.ThemeColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .padding(start = 8.dp)
+                                .background(
+                                    AppThemeColor.ThemeColor.copy(alpha = 0.12f),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
                 Text(
                     text = signature.ifBlank { "编辑签名，展示我的音乐态度" },
                     color = AppThemeColor.TextH2,
@@ -419,6 +521,19 @@ private fun ProfileHeader(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(if (signedIn) AppThemeColor.TextH2 else AppThemeColor.ThemeColor)
+                    .clickable(enabled = !signedIn, onClick = onSignin)
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = if (signedIn) "已签到" else "签到",
+                    color = Color.White,
+                    fontSize = 13.sp
                 )
             }
         }
@@ -457,7 +572,9 @@ private fun MenuCardList(
     onOpenSubList: () -> Unit,
     onOpenCloudDisk: () -> Unit,
     onOpenMsgCenter: () -> Unit,
-    onOpenLocalMusic: () -> Unit
+    onOpenLocalMusic: () -> Unit,
+    onOpenListenRank: () -> Unit,
+    onOpenLevel: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -471,6 +588,18 @@ private fun MenuCardList(
             title = "每日签到",
             subtitle = if (signedIn) "今日已签" else "点击签到",
             onClick = onSignin
+        )
+        MenuCardRow(
+            icon = Icons.Filled.Leaderboard,
+            title = "听歌排行",
+            subtitle = "",
+            onClick = onOpenListenRank
+        )
+        MenuCardRow(
+            icon = Icons.Filled.EmojiEvents,
+            title = "我的等级",
+            subtitle = "",
+            onClick = onOpenLevel
         )
         MenuCardRow(
             icon = Icons.Filled.Star,

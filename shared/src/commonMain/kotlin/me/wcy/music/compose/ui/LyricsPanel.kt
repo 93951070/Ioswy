@@ -91,7 +91,7 @@ fun LyricsPanel(
             Text(
                 text = line.text,
                 color = if (isCurrent) highlightColor else normalColor,
-                fontSize = if (isCurrent) 16.sp else 15.sp,
+                fontSize = if (isCurrent) 18.sp else 14.sp,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                 lineHeight = 22.sp,
                 textAlign = TextAlign.Center,

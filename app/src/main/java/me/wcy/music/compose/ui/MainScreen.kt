@@ -41,7 +41,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.wcy.music.R
 import me.wcy.music.account.service.UserService
+import me.wcy.music.compose.component.DesktopLyricsOverlay
 import me.wcy.music.compose.component.PlayBar
+import me.wcy.music.compose.component.desktopLyricsOn
 import androidx.compose.ui.platform.LocalContext
 import me.wcy.music.consts.RoutePath
 import me.wcy.router.CRouter
@@ -85,6 +87,7 @@ fun MainScreen(
     val context = LocalContext.current
     var currentTab by remember { mutableStateOf<NaviTab>(NaviTab.Discover) }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Column(modifier = Modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {
             when (currentTab) {
@@ -150,6 +153,15 @@ fun MainScreen(
             onSelect = { currentTab = it }
         )
     }
+
+        // 桌面歌词悬浮条：点条进播放页
+        if (desktopLyricsOn.value) {
+            DesktopLyricsOverlay(
+                engine = playerEngine,
+                onOpenPlaying = onOpenPlaying
+            )
+        }
+    }
 }
 
 @Composable
@@ -157,11 +169,12 @@ private fun BottomTabBar(
     current: NaviTab,
     onSelect: (NaviTab) -> Unit
 ) {
+    // 半透明白模拟毛玻璃（网易云底栏效果），真背景模糊需平台 GraphicsLayer，代价过高
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp)
-            .background(AppThemeColor.Card)
+            .background(Color.White.copy(alpha = 0.82f))
     ) {
         NaviTabItem(NaviTab.Discover, current, onSelect)
         NaviTabItem(NaviTab.Mine, current, onSelect)
@@ -219,6 +232,7 @@ fun DrawerContent(
         DrawerMenuRow(Icons.Filled.Public, "域名设置", R.id.action_domain_setting, onMenuSelect)
         DrawerMenuRow(Icons.Filled.Settings, "功能设置", R.id.action_setting, onMenuSelect)
         DrawerMenuRow(Icons.Filled.Timer, "定时停止播放", R.id.action_timer, onMenuSelect)
+        DrawerMenuRow(Icons.Filled.Description, "桌面歌词", R.id.action_desktop_lyrics, onMenuSelect)
         if (profile != null) {
             DrawerMenuRow(Icons.Filled.Logout, "退出登录", R.id.action_logout, onMenuSelect)
         }

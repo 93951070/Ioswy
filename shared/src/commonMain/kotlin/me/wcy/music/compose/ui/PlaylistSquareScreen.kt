@@ -62,7 +62,7 @@ fun PlaylistSquareScreen(
 
     LaunchedEffect(selectedTag) {
         kotlin.runCatching {
-            PlaylistApi.getTopPlaylists(selectedTag, 30, 0)
+            PlaylistApi.getTopPlaylists(selectedTag, 50, 0)
         }.onSuccess {
             if (it.code == 200) {
                 playlists = it.playlists

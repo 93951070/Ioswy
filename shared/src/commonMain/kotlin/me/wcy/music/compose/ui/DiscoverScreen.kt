@@ -24,9 +24,12 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +50,9 @@ import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
 import me.wcy.music.shared.player.PlayerEngine
 
 private val HOME_TABS = listOf("心动", "推荐", "音乐", "播客", "分类")
+
+/** 进程级首页选中 tab：DiscoverScreen 被销毁重建（push 二级页）后恢复离开时位置 */
+private val homePageState = mutableStateOf(0)
 
 @Composable
 fun DiscoverScreen(
@@ -75,8 +81,14 @@ fun DiscoverScreen(
     onOpenMv: (Long) -> Unit = {},
     onOpenVideo: () -> Unit = {},
     onOpenDjRank: () -> Unit = {},
+    onMessage: (String) -> Unit = {},
 ) {
-    val pagerState = rememberPagerState(pageCount = { HOME_TABS.size })
+    // 首页选中 tab 放进程级：push 二级页时 DiscoverScreen 离开组合，
+    // rememberPagerState 丢状态导致返回时被重置回心动页
+    val pagerState = rememberPagerState(initialPage = homePageState.value, pageCount = { HOME_TABS.size })
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { homePageState.value = it }
+    }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -109,7 +121,10 @@ fun DiscoverScreen(
                 0 -> HeartTab(
                     playerEngine = playerEngine,
                     onPlayQueue = onPlayDailySong,
-                    onOpenPlaying = onOpenPlaying,
+                    onExitHeart = {
+                        scope.launch { pagerState.animateScrollToPage(1) }
+                    },
+                    onMessage = onMessage,
                     onOpenRecommendSong = onOpenRecommendSong
                 )
                 1 -> RecommendTab(

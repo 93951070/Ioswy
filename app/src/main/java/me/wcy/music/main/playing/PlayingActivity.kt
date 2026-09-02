@@ -32,6 +32,7 @@ import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.service.PlayerController
 import me.wcy.music.service.likesong.LikeSongProcessor
 import me.wcy.music.shared.player.PlayerEngine
+import me.wcy.music.shared.player.downloadSongAsync
 import me.wcy.music.storage.LrcCache
 import me.wcy.music.storage.preference.ConfigPreferences
 import me.wcy.music.utils.getSongId
@@ -109,7 +110,9 @@ class PlayingActivity : BaseMusicActivity() {
                     },
                     onShare = { song, songId -> shareSong(song, songId) },
                     onOpenMenu = { song, songId -> showSongMenu(song, songId) },
-                    onDownload = { toast("敬请期待") },
+                    onDownload = {
+                        playerEngine.currentSong.value?.let { downloadSongAsync(it) { toast(it) } }
+                    },
                     onMessage = { toast(it) },
                     onOpenFloor = { pid ->
                         val songId = playerEngine.currentSong.value?.id

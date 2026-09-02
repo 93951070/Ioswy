@@ -82,7 +82,20 @@ data class VideoData(
     @SerialName("creator")
     val creator: VideoCreator = VideoCreator(),
     @SerialName("urlInfo")
-    val urlInfo: VideoUrlInfo? = null
+    val urlInfo: VideoUrlInfo? = null,
+    @SerialName("videoGroup")
+    val videoGroup: List<VideoGroupTag> = listOf()
+)
+
+/**
+ * 视频所属分组标签（timeline 条目 data.videoGroup 元素）
+ */
+@Serializable
+data class VideoGroupTag(
+    @SerialName("id")
+    val id: Long = 0,
+    @SerialName("name")
+    val name: String = ""
 )
 
 /**

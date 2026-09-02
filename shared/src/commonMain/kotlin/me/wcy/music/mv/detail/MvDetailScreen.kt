@@ -1,22 +1,27 @@
 package me.wcy.music.mv.detail
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.StartOffset
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -37,15 +42,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import me.wcy.music.common.bean.SharedJson
-import me.wcy.music.common.bean.decodeBean
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.ui.CommentPanel
 import me.wcy.music.compose.ui.TitleBar
@@ -54,8 +60,7 @@ import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.mv.MvNet
 import me.wcy.music.mv.bean.MvItem
 import me.wcy.music.mv.detail.viewmodel.MvDetailViewModel
-import me.wcy.music.shared.net.MvVideoExtraNet
-import me.wcy.music.shared.net.SharedNet
+import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.util.formatPlayCount
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,16 +91,27 @@ fun MvDetailScreen(
         related = loadRelatedMv(mvid)
     }
 
+    // 弹幕池来自评论区；开关状态放顶层，全屏布局切换时不重置
+    var danmaku by remember(mvid) { mutableStateOf<List<String>>(emptyList()) }
+    var danmakuOn by remember { mutableStateOf(true) }
+
+    LaunchedEffect(mvid) {
+        danmaku = loadDanmaku(mvid)
+    }
+
     var isFullscreen by remember { mutableStateOf(false) }
 
     if (isFullscreen) {
         // 全屏：页面内布局切换，只渲染播放器 + 左上角退出按钮，其余内容不渲染
         // ponytail: 全屏切换会重建播放器（进度从头播）；要保进度需把 player 提升为跨布局共享状态
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            MvPlayerSurface(
+            MvPlayerArea(
                 url = mvUrl,
                 isFullscreen = true,
                 onToggleFullscreen = { isFullscreen = false },
+                danmaku = danmaku,
+                danmakuOn = danmakuOn,
+                onToggleDanmaku = { danmakuOn = !danmakuOn },
                 modifier = Modifier.fillMaxSize()
             )
             Icon(
@@ -117,11 +133,14 @@ fun MvDetailScreen(
             item {
                 // 有地址直接内嵌自动播放，无地址显示封面
                 if (mvUrl.isNotBlank()) {
-                    MvPlayerSurface(
+                    MvPlayerArea(
                         url = mvUrl,
                         isFullscreen = false,
                         onToggleFullscreen = { isFullscreen = true },
-                        modifier = Modifier.fillMaxWidth().height(210.dp).background(Color.Black)
+                        danmaku = danmaku,
+                        danmakuOn = danmakuOn,
+                        onToggleDanmaku = { danmakuOn = !danmakuOn },
+                        modifier = Modifier.fillMaxWidth().height(210.dp)
                     )
                 } else {
                     MvPlayerCover(cover = mv?.cover ?: "")
@@ -147,12 +166,21 @@ fun MvDetailScreen(
                     )
                 }
                 item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    // 2 行 x 3 列网格 x 2 组，共 12 个 MV
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(related) { data ->
-                            RelatedMvCard(item = data, onClick = { onOpenMv(data.id) })
+                        related.chunked(3).forEach { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                rowItems.forEach { data ->
+                                    RelatedMvCard(
+                                        item = data,
+                                        onClick = { onOpenMv(data.id) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -273,16 +301,18 @@ private fun MvInfo(
     }
 }
 
-/** GET /simi/mv 返回 {code, mvdata: List<MvItem>}（MvNet 无封装，本地接口实测键名为 mvdata） */
-@Serializable
-private data class MvSimiData(
-    @SerialName("code")
-    val code: Int = 0,
-    @SerialName("mvdata")
-    val mvdata: List<MvItem> = listOf()
-)
+/** GET /comment/mv 返回 hotComments + comments，弹幕池取第一页 20 条评论内容 */
+private suspend fun loadDanmaku(mvid: Long): List<String> {
+    return runCatching {
+        DiscoverNet.getCommentMv(mvid, limit = 20)
+    }.getOrNull()?.let { data ->
+        (data.hotComments + data.comments)
+            .map { it.content.trim() }
+            .filter { it.isNotBlank() }
+    }.orEmpty()
+}
 
-/** 相关推荐条目：融合 simi/mv 与 related/allvideo 的统一展示模型 */
+/** 相关推荐条目：personalized/mv（picUrl）与 mv/first（cover）的统一展示模型 */
 private data class RelatedMv(
     val id: Long,
     val name: String,
@@ -291,42 +321,124 @@ private data class RelatedMv(
 )
 
 /**
- * 相关推荐：首选 simi/mv（MV 专用）；为空时降级 personalized/mv（官方 MV 推荐流）；
- * 再为空时降级 related/allvideo（视频接口，vid 为纯数字的条目才是 MV）
+ * 相关推荐：personalized/mv（编辑推荐，实测仅 2 条）+ mv/first(limit=20) 兜底，
+ * 按 id 去重、排除当前 MV，取前 12 条铺 2 行 x 3 列网格 x 2 组
  */
 private suspend fun loadRelatedMv(mvid: Long): List<RelatedMv> {
-    runCatching {
-        SharedJson.decodeBean<MvSimiData>(
-            SharedNet.get("simi/mv", params = listOf("mvid" to mvid))
+    val personalized = runCatching {
+        MvNet.getPersonalizedMv().takeIf { it.code == 200 }?.result.orEmpty()
+    }.getOrDefault(emptyList())
+        .map { RelatedMv(it.id, it.name, it.picUrl, it.playCount) }
+    val first = runCatching {
+        MvNet.getMvFirst(limit = 20).data
+    }.getOrDefault(emptyList())
+        .map { RelatedMv(it.id, it.name, it.cover, it.playCount) }
+    return (personalized + first)
+        .filter { it.id > 0 && it.id != mvid && it.cover.isNotBlank() }
+        .distinctBy { it.id }
+        .take(12)
+}
+
+/**
+ * 播放器容器：视频层 + 弹幕层（顶部 30% 轨道）+「弹」开关按钮（全屏/非全屏共用）。
+ * 弹幕层与开关按钮均为纯绘制/自身点击，其余手势穿透到播放器。
+ */
+@Composable
+private fun MvPlayerArea(
+    url: String,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    danmaku: List<String>,
+    danmakuOn: Boolean,
+    onToggleDanmaku: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier.background(Color.Black)) {
+        MvPlayerSurface(
+            url = url,
+            isFullscreen = isFullscreen,
+            onToggleFullscreen = onToggleFullscreen,
+            modifier = Modifier.fillMaxSize()
         )
-    }.getOrNull()?.mvdata?.takeIf { it.isNotEmpty() }?.let { list ->
-        return list
-            .filter { it.id != mvid }
-            .map { RelatedMv(it.id, it.name, it.cover, it.playCount) }
-    }
-    runCatching {
-        MvNet.getPersonalizedMv().takeIf { it.code == 200 }?.result
-    }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { list ->
-        return list
-            .filter { it.id != mvid }
-            .map { RelatedMv(it.id, it.name, it.picUrl, it.playCount) }
-    }
-    return runCatching {
-        MvVideoExtraNet.getRelatedVideos(mvid).takeIf { it.isSuccessWithData() }?.data?.data
-    }.getOrNull().orEmpty()
-        .mapNotNull { video ->
-            val mvId = video.vid.toLongOrNull() ?: return@mapNotNull null
-            RelatedMv(mvId, video.title, video.coverUrl, video.playTime)
+        if (danmakuOn && danmaku.isNotEmpty()) {
+            DanmakuOverlay(
+                danmaku = danmaku,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.3f)
+            )
         }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 12.dp, top = 44.dp)
+                .size(26.dp)
+                .background(
+                    if (danmakuOn) Color(0xFFEC4141) else Color.Black.copy(alpha = 0.35f),
+                    CircleShape
+                )
+                .clickable(onClick = onToggleDanmaku),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "弹", color = Color.White, fontSize = 11.sp)
+        }
+    }
+}
+
+/** 顶部弹幕区：2-3 行轨道，池子不足时行数随之减少 */
+@Composable
+private fun DanmakuOverlay(danmaku: List<String>, modifier: Modifier = Modifier) {
+    val rows = danmaku.chunked(7).take(3)
+    Box(modifier = modifier.clipToBounds()) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceEvenly
+        ) {
+            rows.forEachIndexed { index, row ->
+                DanmakuRow(
+                    text = row.map { it.take(24) }.joinToString("　　　　"),
+                    durationMillis = 16000 + index * 2000,
+                    startOffsetMillis = index * 6000
+                )
+            }
+        }
+    }
+}
+
+/** 单条弹幕轨道：infiniteTransition 驱动文本从右侧匀速平移到左侧循环，各行起始 offset 错开 */
+@Composable
+private fun DanmakuRow(text: String, durationMillis: Int, startOffsetMillis: Int) {
+    val transition = rememberInfiniteTransition(label = "danmaku")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = durationMillis, easing = LinearEasing),
+            initialStartOffset = StartOffset(startOffsetMillis)
+        ),
+        label = "danmaku-progress"
+    )
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val travel = maxWidth
+        Text(
+            text = text,
+            color = Color.White,
+            fontSize = 13.sp,
+            maxLines = 1,
+            style = TextStyle(shadow = Shadow(Color.Black, Offset(1f, 1f), blurRadius = 2f)),
+            modifier = Modifier
+                .offset(x = travel)
+                .graphicsLayer { translationX = -(travel.toPx() + size.width) * progress }
+        )
+    }
 }
 
 @Composable
-/** 相关推荐横向卡片：16:9 封面 + 标题 + 播放量 */
-private fun RelatedMvCard(item: RelatedMv, onClick: () -> Unit) {
+/** 相关推荐网格卡片：16:9 封面 + 标题 2 行截断 + 播放量，宽度由网格 weight 决定 */
+private fun RelatedMvCard(item: RelatedMv, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Column(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable(onClick = onClick)
+        modifier = modifier.clickable(onClick = onClick)
     ) {
         CoverImage(
             url = item.cover,

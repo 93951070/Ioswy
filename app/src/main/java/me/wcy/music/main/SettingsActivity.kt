@@ -44,7 +44,8 @@ class SettingsActivity : BaseMusicActivity() {
                     items = items,
                     onItemChange = ::onItemChange,
                     onOpenSoundEffect = ::startEqualizer,
-                    onBack = { finish() }
+                    onBack = { finish() },
+                    onMessage = { toast(it) }
                 )
             }
         }

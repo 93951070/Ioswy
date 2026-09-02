@@ -265,6 +265,11 @@ class MainActivity : BaseMusicActivity() {
             R.id.action_timer -> {
                 timerDialog()
             }
+            R.id.action_desktop_lyrics -> {
+                me.wcy.music.compose.component.desktopLyricsOn.value =
+                    !me.wcy.music.compose.component.desktopLyricsOn.value
+                toast(if (me.wcy.music.compose.component.desktopLyricsOn.value) "桌面歌词已开启" else "桌面歌词已关闭")
+            }
             R.id.action_logout -> {
                 logout()
             }

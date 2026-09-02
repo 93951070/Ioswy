@@ -31,7 +31,8 @@ class CommentViewModel(
     private val _sortType = MutableStateFlow(SORT_RECOMMEND)
     val sortType: StateFlow<Int> = _sortType.asStateFlow()
 
-    private var resourceId = 0L
+    /** 评论资源 id；数字资源直接用 id 字符串，视频为 hex vid（comment/new type=5 实测支持） */
+    private var resourceId = ""
     private var pageNo = 1
 
     /** comment/new 的翻页游标（时间戳/热度标记字符串），响应返回后原样回传 */
@@ -41,15 +42,20 @@ class CommentViewModel(
     /** 请求代际号：切换资源/排序后丢弃旧请求的迟到响应 */
     private var requestGen = 0
 
-    /** 评论资源类型：0 歌曲 / 1 MV / 2 歌单 / 4 电台 / 5 专辑（comment 接口 type 参数） */
+    /** 评论资源类型：0 歌曲 / 1 MV / 2 歌单 / 4 电台 / 5 专辑·视频（comment 接口 type 参数，视频与专辑同为 5） */
     private var resourceType: Int = 0
 
     fun init(id: Long, source: String = "music") {
+        init(id.toString(), source)
+    }
+
+    fun init(id: String, source: String = "music") {
         resourceType = when (source) {
             "dj" -> 4
             "mv" -> 1
             "album" -> 5
             "playlist" -> 2
+            "video" -> 5
             else -> 0
         }
         if (resourceId == id && _comments.value.isNotEmpty()) return
@@ -73,12 +79,16 @@ class CommentViewModel(
         _total.value = 0
         _hotComments.value = emptyList()
         // 本地已发评论直接作为最新评论头部，避免上游收录延迟导致"发完重进就没了"
-        _comments.value = myCommentStore.load(resourceId)
+        _comments.value = myCommentStore.load(commentCacheKey())
         loadMore()
     }
 
+    /** 本地已发评论缓存键：数字资源直用 id；hex 视频 vid 取末 12 位十六进制转 Long，稳定且跨视频不冲突 */
+    private fun commentCacheKey(): Long =
+        resourceId.toLongOrNull() ?: resourceId.takeLast(12).toLongOrNull(16) ?: 0L
+
     fun loadMore() {
-        if (resourceId <= 0 || _loading.value || !hasMore) return
+        if (resourceId.isEmpty() || _loading.value || !hasMore) return
         _loading.value = true
         val gen = requestGen
         val page = pageNo
@@ -111,7 +121,7 @@ class CommentViewModel(
     }
 
     fun toggleLike(comment: CommentItem, onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
-        if (resourceId <= 0) return
+        if (resourceId.isEmpty()) return
         viewModelScope.launch {
             val target = if (comment.liked) 0 else 1
             val res = kotlin.runCatching {
@@ -137,7 +147,7 @@ class CommentViewModel(
     }
 
     fun send(content: String, onResult: (Boolean, String?) -> Unit) {
-        if (resourceId <= 0 || content.isBlank()) return
+        if (resourceId.isEmpty() || content.isBlank()) return
         viewModelScope.launch {
             val res = kotlin.runCatching {
                 DiscoverNet.addComment(resourceId, type = resourceType, content = content.trim())
@@ -146,7 +156,7 @@ class CommentViewModel(
             if (data?.code == 200) {
                 val newComment = data.comment
                 if (newComment != null) {
-                    myCommentStore.prepend(resourceId, newComment)
+                    myCommentStore.prepend(commentCacheKey(), newComment)
                     _comments.value = listOf(newComment) + _comments.value
                 }
                 _total.value += 1

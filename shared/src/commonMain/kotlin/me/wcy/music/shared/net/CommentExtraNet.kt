@@ -114,9 +114,10 @@ object CommentExtraNet {
     /**
      * 新版统一评论。sortType：1 推荐 / 2 热度 / 3 时间；
      * cursor 为响应返回的时间戳字符串，翻页时原样回传。
+     * id 支持数字资源与 hex 视频 vid（type=5 即 R_VI_62_ 资源）。
      */
     suspend fun getCommentNew(
-        id: Long,
+        id: String,
         type: Int = 0,
         pageNo: Int = 1,
         pageSize: Int = 20,

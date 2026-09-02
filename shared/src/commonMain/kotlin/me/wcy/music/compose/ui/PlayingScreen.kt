@@ -34,10 +34,10 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Share
@@ -122,7 +122,9 @@ fun PlayingScreen(
     // ponytail: PlayState.Preparing 近似为「未播放且在缓冲」，极早期缓冲(0%)会显示为暂停态，升级需引擎暴露 preparing 状态流
     val isPreparing = !isPlaying && buffering > 0
 
-    var showCover by remember { mutableStateOf(true) }
+    var showLyrics by remember { mutableStateOf(false) }
+    // 封面显示模式：true=黑胶唱片，false=大封面卡片；点封面在两者间切换
+    var vinylMode by remember { mutableStateOf(true) }
     var showPlaylistSheet by remember { mutableStateOf(false) }
     var showCommentSheet by remember { mutableStateOf(false) }
     var commentSongId by remember { mutableStateOf(0L) }
@@ -218,35 +220,41 @@ fun PlayingScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                if (showCover) {
-                    VinylCover(
-                        coverUrl = coverUrl,
-                        isPlaying = isPlaying,
-                        onClick = { showCover = false },
-                        modifier = Modifier.size(maxWidth - 100.dp)
-                    )
-                } else {
+                if (showLyrics) {
                     LyricsPanel(
                         lrcContent = lrcContent,
                         progressMs = playProgress,
                         label = lrcLabel,
                         onSeek = { playerEngine.seekTo(it) },
-                        onEmptyTap = { showCover = true },
+                        onEmptyTap = { showLyrics = false },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(top = 40.dp)
                     )
+                } else if (vinylMode) {
+                    VinylCover(
+                        coverUrl = coverUrl,
+                        isPlaying = isPlaying,
+                        onClick = { vinylMode = false },
+                        modifier = Modifier.size(maxWidth - 100.dp)
+                    )
+                } else {
+                    CoverCard(
+                        coverUrl = coverUrl,
+                        onClick = { vinylMode = true },
+                        modifier = Modifier.size(maxWidth - 100.dp)
+                    )
                 }
                 Text(
                     text = "词",
-                    color = if (showCover) Color.White.copy(alpha = 0.7f) else Red500,
+                    color = if (showLyrics) Red500 else Color.White.copy(alpha = 0.7f),
                     fontSize = 13.sp,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.3f))
                         .padding(horizontal = 14.dp, vertical = 6.dp)
-                        .clickable { showCover = !showCover }
+                        .clickable { showLyrics = !showLyrics }
                 )
             }
 
@@ -431,6 +439,21 @@ private fun PlaylistSheet(playerEngine: PlayerEngine) {
             }
         }
     }
+}
+
+/** 大封面卡片模式：圆角方形封面，点击切回黑胶唱片 */
+@Composable
+private fun CoverCard(
+    coverUrl: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CoverImage(
+        url = coverUrl,
+        contentDescription = "封面",
+        cornerRadius = 12.dp,
+        modifier = modifier.clickable(onClick = onClick)
+    )
 }
 
 @Composable
@@ -662,7 +685,7 @@ private fun ProgressAndControls(
             }
             IconButton(onClick = onOpenPlaylist) {
                 Icon(
-                    imageVector = Icons.Filled.List,
+                    imageVector = Icons.Filled.QueueMusic,
                     contentDescription = "列表",
                     tint = Color.White
                 )

@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,16 +13,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,6 +49,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.mv.detail.MvPlayerSurface
 import me.wcy.music.shared.bean.mvvideo.MvDetailInfoData
 import me.wcy.music.shared.bean.mvvideo.VideoCategory
@@ -151,15 +163,23 @@ class VideoViewModel : ViewModel() {
     private suspend fun loadGroupPage(offset: Long) {
         groupLoading = true
         try {
-            kotlin.runCatching { MvVideoExtraNet.getVideoGroup(currentGroupId, offset) }
-                .onSuccess { data ->
-                    _groupVideos.value = if (offset == 0L) {
-                        data.datas
-                    } else {
-                        _groupVideos.value + data.datas
-                    }
-                    _groupHasMore.value = data.hasmore
-                }
+            // video/group 上游对当前账号所有 gid 均返回 datas:null（带 cookie 同样），
+            // 空结果时退回推荐流按分组名过滤，保证部分分类 tab 有数据
+            val direct = kotlin.runCatching { MvVideoExtraNet.getVideoGroup(currentGroupId, offset) }.getOrNull()
+            val directItems = direct?.datas.orEmpty()
+            if (directItems.isNotEmpty()) {
+                _groupVideos.value = if (offset == 0L) directItems else _groupVideos.value + directItems
+                _groupHasMore.value = direct?.hasmore ?: false
+                return
+            }
+            val groupName = _categories.value.firstOrNull { it.id == currentGroupId }?.name.orEmpty()
+            val timeline = kotlin.runCatching { MvVideoExtraNet.getVideoTimelineRecommend(offset = offset) }.getOrNull()
+            val items = timeline?.datas
+                ?.map { it.data }
+                ?.filter { it.vid.isNotBlank() && it.videoGroup.any { g -> g.name == groupName } }
+                .orEmpty()
+            _groupVideos.value = if (offset == 0L) items else _groupVideos.value + items
+            _groupHasMore.value = timeline?.hasmore ?: false
         } finally {
             groupLoading = false
         }
@@ -187,6 +207,21 @@ class VideoViewModel : ViewModel() {
             apiCall { MvVideoExtraNet.getRelatedVideos(vid.toLongOrNull() ?: 0L) }.getDataOrThrowOrNull()?.let {
                 _detail.value = _detail.value.copy(related = it.data)
             }
+            // related/allvideo 实测恒返回空数组，退回推荐流排除当前视频后取前 12 条
+            if (_detail.value.related.isEmpty()) {
+                val fallback = mutableListOf<VideoData>()
+                for (offset in listOf(0L, 8L)) {
+                    val tl = kotlin.runCatching {
+                        MvVideoExtraNet.getVideoTimelineRecommend(offset = offset)
+                    }.getOrNull() ?: break
+                    fallback += tl.datas.map { it.data }
+                        .filter { it.vid.isNotBlank() && it.vid != vid }
+                    if (fallback.size >= 12 || !tl.hasmore) break
+                }
+                if (fallback.isNotEmpty()) {
+                    _detail.value = _detail.value.copy(related = fallback.distinctBy { it.vid }.take(12))
+                }
+            }
         }
     }
 
@@ -204,7 +239,8 @@ class VideoViewModel : ViewModel() {
 
 @Composable
 fun VideoScreen(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMessage: (String) -> Unit = {}
 ) {
     val viewModel = remember { VideoViewModel() }
     val showDetail by viewModel.showDetail.collectAsState()
@@ -212,7 +248,7 @@ fun VideoScreen(
     LaunchedEffect(Unit) { viewModel.load() }
 
     if (showDetail) {
-        VideoDetailContent(viewModel)
+        VideoDetailContent(viewModel, onMessage)
     } else {
         VideoListContent(viewModel, onBack)
     }
@@ -265,72 +301,124 @@ private fun VideoListContent(viewModel: VideoViewModel, onBack: () -> Unit) {
                         LoadingHint()
                     }
                 } else if (groupVideos.isEmpty()) {
-                    item { EmptyHint("暂无数据，可能需要登录") }
+                    item { EmptyHint("暂无数据") }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun VideoDetailContent(viewModel: VideoViewModel) {
+private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) -> Unit) {
     val detail by viewModel.detail.collectAsState()
     val video = detail.video
+    val commentViewModel = remember { CommentViewModel() }
+    var showCommentSheet by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(AppThemeColor.Background)
-    ) {
-        item {
-            TitleBar(
-                title = video?.title?.takeIf { it.isNotBlank() } ?: "视频详情",
-                onBack = { viewModel.closeDetail() }
-            )
-        }
-        item {
+    if (isFullscreen) {
+        // 全屏：页面内布局切换，只渲染播放器 + 退出按钮；iOS 横屏由 MvPlayerSurface 内部 LaunchedEffect 请求
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             if (detail.playUrl.isNotBlank()) {
                 MvPlayerSurface(
                     url = detail.playUrl,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(210.dp)
-                        .background(Color.Black)
+                    isFullscreen = true,
+                    onToggleFullscreen = { isFullscreen = false },
+                    modifier = Modifier.fillMaxSize()
                 )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(210.dp)
-                        .background(Color.Black),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CoverImage(url = video?.coverUrl ?: "", modifier = Modifier.fillMaxSize())
-                    Text(text = "视频不可播放", color = Color.White, fontSize = 14.sp)
+            }
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "退出全屏",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .size(28.dp)
+                    .clickable { isFullscreen = false }
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AppThemeColor.Background)
+        ) {
+            item {
+                TitleBar(
+                    title = video?.title?.takeIf { it.isNotBlank() } ?: "视频详情",
+                    onBack = { viewModel.closeDetail() }
+                )
+            }
+            item {
+                if (detail.playUrl.isNotBlank()) {
+                    MvPlayerSurface(
+                        url = detail.playUrl,
+                        isFullscreen = false,
+                        onToggleFullscreen = { isFullscreen = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(210.dp)
+                            .background(Color.Black)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(210.dp)
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CoverImage(url = video?.coverUrl ?: "", modifier = Modifier.fillMaxSize())
+                        Text(text = "视频不可播放", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+            }
+            if (video != null) {
+                item { VideoDetailInfo(video, detail.info, onOpenComment = { showCommentSheet = true }) }
+            }
+            if (detail.related.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "相关推荐",
+                        color = AppThemeColor.TextH1,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        itemsIndexed(detail.related) { _, item ->
+                            RelatedVideoCard(item) { viewModel.openVideo(item.vid) }
+                        }
+                    }
                 }
             }
         }
-        if (video != null) {
-            item { VideoDetailInfo(video, detail.info) }
+    }
+
+    if (showCommentSheet) {
+        LaunchedEffect(detail.vid) {
+            // 视频评论走 comment/new type=5（R_VI_62_ 资源），支持 hex vid
+            commentViewModel.init(detail.vid, source = "video")
+            commentViewModel.loadMore()
         }
-        if (detail.related.isNotEmpty()) {
-            item {
-                Text(
-                    text = "相关视频",
-                    color = AppThemeColor.TextH1,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                )
-            }
-            itemsIndexed(detail.related) { _, item ->
-                VideoCard(item) { viewModel.openVideo(item.vid) }
-            }
+        ModalBottomSheet(
+            onDismissRequest = { showCommentSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White
+        ) {
+            CommentPanel(commentViewModel, onMessage)
         }
     }
 }
 
 @Composable
-private fun VideoDetailInfo(video: VideoData, info: MvDetailInfoData?) {
+private fun VideoDetailInfo(video: VideoData, info: MvDetailInfoData?, onOpenComment: () -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
         Text(
             text = video.title.ifBlank { video.description },
@@ -366,12 +454,53 @@ private fun VideoDetailInfo(video: VideoData, info: MvDetailInfoData?) {
                 fontSize = 12.sp
             )
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "点赞 ${info?.likedCount ?: video.praisedCount} · " +
+                    "收藏 ${info?.subCount ?: video.subscribeCount} · " +
+                    "评论 ${info?.commentCount ?: video.commentCount}",
+                color = AppThemeColor.TextH2,
+                fontSize = 12.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Box(
+                modifier = Modifier
+                    .background(AppThemeColor.ThemeColor, RoundedCornerShape(12.dp))
+                    .clickable(onClick = onOpenComment)
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
+            ) {
+                Text(text = "评论", color = Color.White, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+/** 相关推荐横向卡片：16:9 封面 + 标题 2 行截断 */
+@Composable
+private fun RelatedVideoCard(video: VideoData, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(200.dp)
+            .clickable(onClick = onClick)
+    ) {
+        CoverImage(
+            url = video.coverUrl,
+            cornerRadius = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+        )
         Text(
-            text = "点赞 ${info?.likedCount ?: video.praisedCount} · " +
-                "收藏 ${info?.subCount ?: video.subscribeCount} · " +
-                "评论 ${info?.commentCount ?: video.commentCount}",
-            color = AppThemeColor.TextH2,
-            fontSize = 12.sp,
+            text = video.title.ifBlank { video.description },
+            color = AppThemeColor.TextH1,
+            fontSize = 13.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp)
         )
     }

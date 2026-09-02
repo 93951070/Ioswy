@@ -45,6 +45,18 @@ object DiscoverNet {
         )
     }
 
+    /** 下载用流地址：song/url/v1 standard 档，无版权/取不到时返回 null */
+    suspend fun getSongDownloadUrl(songId: Long): String? {
+        if (songId <= 0) return null
+        return runCatching { getSongUrl(songId, "standard") }
+            .getOrNull()
+            ?.takeIf { it.isSuccessWithData() }
+            ?.data
+            ?.firstOrNull()
+            ?.url
+            ?.takeIf { it.isNotBlank() }
+    }
+
     suspend fun getLrc(
         id: Long,
     ): LrcDataWrap {
@@ -187,7 +199,7 @@ object DiscoverNet {
     }
 
     suspend fun likeComment(
-        songId: Long,
+        songId: String,
         commentId: Long,
         t: Int,
         type: Int = 0,
@@ -205,7 +217,7 @@ object DiscoverNet {
     }
 
     suspend fun addComment(
-        songId: Long,
+        songId: String,
         type: Int = 0,
         t: Int = 1,
         content: String,

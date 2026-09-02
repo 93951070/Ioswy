@@ -73,7 +73,9 @@ import me.wcy.music.common.bean.AlbumData
 import me.wcy.music.common.bean.ArtistData
 import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
+import me.wcy.music.compose.component.DesktopLyricsOverlay
 import me.wcy.music.compose.component.PlayBar
+import me.wcy.music.compose.component.desktopLyricsOn
 import me.wcy.music.compose.theme.AppThemeColor
 import me.wcy.music.compose.theme.MusicTheme
 import me.wcy.music.compose.ui.DiscoverScreen
@@ -111,6 +113,7 @@ import me.wcy.music.shared.net.MineNet
 import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.shared.net.apiCall
 import me.wcy.music.shared.player.IosPlayerEngine
+import me.wcy.music.shared.player.downloadSongAsync
 import me.wcy.music.album.detail.AlbumDetailScreen
 import me.wcy.music.album.detail.viewmodel.AlbumDetailViewModel
 import me.wcy.music.album.new.AlbumNewScreen
@@ -532,12 +535,16 @@ fun IosRoot() {
                     IosPage.Settings -> SettingsPage(
                         darkModeOverride = darkModeOverride,
                         onItemChange = { key, value ->
-                            if (key == "dark_mode") {
+                            if (key == "desktop_lyrics") {
+                                desktopLyricsOn.value = value == "on"
+                                toast(if (desktopLyricsOn.value) "桌面歌词已开启" else "桌面歌词已关闭")
+                            } else if (key == "dark_mode") {
                                 darkModeOverride = value
                                 saveDarkMode(value)
                                 toast("外观已切换")
                             }
                         },
+                        onMessage = { toast(it) },
                         onBack = { pop() }
                     )
                     IosPage.Playing -> PlayingPage(
@@ -712,6 +719,14 @@ fun IosRoot() {
                 }
             }
 
+            // 桌面歌词悬浮条：主 Tab 页显示，点条进播放页
+            if (desktopLyricsOn.value && backStack.isEmpty()) {
+                DesktopLyricsOverlay(
+                    engine = engine,
+                    onOpenPlaying = { push(IosPage.Playing) }
+                )
+            }
+
             ToastOverlay(message)
         }
         }
@@ -791,11 +806,12 @@ private fun BottomTabBar(
     current: IosTab,
     onSelect: (IosTab) -> Unit
 ) {
+    // 半透明白模拟毛玻璃（网易云底栏效果），真背景模糊需平台 GraphicsLayer，代价过高
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp)
-            .background(AppThemeColor.Card)
+            .background(Color.White.copy(alpha = 0.82f))
     ) {
         IosTab.entries.forEach { tab ->
             Box(
@@ -1014,7 +1030,7 @@ private fun PlayingPage(
             IosShareHelper.shareText("分享歌曲：${song.name}\nhttps://music.163.com/song?id=$songId")
         },
         onOpenMenu = { song, _ -> menuSong = song },
-        onDownload = { onMessage("敬请期待") },
+        onDownload = { currentSong?.let { downloadSongAsync(it, onMessage) } },
         onMessage = onMessage,
         onOpenFloor = onOpenFloor,
         onPlaylistEmpty = onBack,
@@ -1062,6 +1078,7 @@ private fun PlayingPage(
 private fun SettingsPage(
     darkModeOverride: String,
     onItemChange: (String, String) -> Unit,
+    onMessage: (String) -> Unit,
     onBack: () -> Unit
 ) {
     val items = listOf(
@@ -1076,12 +1093,24 @@ private fun SettingsPage(
                 SettingChoice("浅色模式", "light"),
                 SettingChoice("深色模式", "dark")
             )
+        ),
+        SettingItem(
+            key = "desktop_lyrics",
+            category = "通用",
+            title = "桌面歌词",
+            dialogTitle = "桌面歌词",
+            value = if (desktopLyricsOn.value) "开" else "关",
+            options = listOf(
+                SettingChoice("开", "on"),
+                SettingChoice("关", "off")
+            )
         )
     )
     SettingsScreen(
         items = items,
         onItemChange = onItemChange,
         onOpenSoundEffect = {},
+        onMessage = onMessage,
         onBack = onBack
     )
 }

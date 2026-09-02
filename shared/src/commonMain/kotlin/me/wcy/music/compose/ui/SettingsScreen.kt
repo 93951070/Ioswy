@@ -38,13 +38,17 @@ data class SettingItem(
     val options: List<SettingChoice>
 )
 
+const val APP_NAME = "PonyMusic"
+const val APP_VERSION = "2.4.0-beta01"
+
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 fun SettingsScreen(
     items: List<SettingItem>,
     onItemChange: (key: String, value: String) -> Unit,
     onOpenSoundEffect: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMessage: (String) -> Unit = {}
 ) {
     var editing by remember { mutableStateOf<SettingItem?>(null) }
 
@@ -71,6 +75,36 @@ fun SettingsScreen(
                         editing = item
                     }
                 }
+            )
+        }
+        item {
+            Text(
+                text = "缓存",
+                color = AppThemeColor.TextH2,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
+            )
+            SettingActionRow(
+                title = "清理缓存",
+                value = "12.6 MB",
+                onClick = { onMessage("已清理") }
+            )
+        }
+        item {
+            Text(
+                text = "关于",
+                color = AppThemeColor.TextH2,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
+            )
+            SettingInfoRow(
+                title = "关于",
+                value = "$APP_NAME v$APP_VERSION"
+            )
+            SettingInfoRow(
+                title = "音质说明",
+                value = "标准(128kbps)、较高(192kbps)免费；极高(320kbps)需VIP；" +
+                    "无损(FLAC)、高清臻音与沉浸环绕需SVIP。实际可选音质以歌曲版权与会员状态为准。"
             )
         }
     }
@@ -151,5 +185,56 @@ private fun SettingRow(
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun SettingActionRow(
+    title: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = AppThemeColor.TextH1,
+            fontSize = 15.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = value,
+            color = AppThemeColor.TextH2,
+            fontSize = 13.sp
+        )
+    }
+}
+
+@Composable
+private fun SettingInfoRow(
+    title: String,
+    value: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Text(
+            text = title,
+            color = AppThemeColor.TextH1,
+            fontSize = 15.sp
+        )
+        Text(
+            text = value,
+            color = AppThemeColor.TextH2,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 2.dp)
+        )
     }
 }

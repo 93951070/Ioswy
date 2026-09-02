@@ -69,6 +69,27 @@ private fun formatMvTime(seconds: Float): String {
     return "$m:$s"
 }
 
+/**
+ * 请求旋转屏幕（iOS16+）：landscapeRight 进全屏，portrait 退出。
+ * Info.plist 已声明支持横竖屏。返回是否成功发起请求，失败时调用方降级为竖屏全屏。
+ * （方法名/参数形式对齐已验证的 KMP 实践：requestGeometryUpdateWithPreferences + errorHandler=null）
+ */
+private fun requestInterfaceOrientation(landscape: Boolean): Boolean {
+    return runCatching {
+        val mask = if (landscape) {
+            UIInterfaceOrientationMaskLandscapeRight
+        } else {
+            UIInterfaceOrientationMaskPortrait
+        }
+        val scene = UIApplication.sharedApplication.connectedScenes.firstOrNull() as? UIWindowScene
+        scene?.requestGeometryUpdateWithPreferences(
+            geometryPreferences = UIWindowSceneGeometryPreferencesIOS(interfaceOrientations = mask),
+            errorHandler = null
+        )
+        scene != null
+    }.getOrDefault(false)
+}
+
 @OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun MvPlayerSurface(
@@ -111,6 +132,11 @@ actual fun MvPlayerSurface(
             delay(3000)
             showOverlay = false
         }
+    }
+
+    // 全屏 = 真横屏：进入全屏请求 landscapeRight，退出请求 portrait
+    LaunchedEffect(isFullscreen) {
+        requestInterfaceOrientation(isFullscreen)
     }
 
     val togglePlay = {

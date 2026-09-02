@@ -31,7 +31,7 @@ class MvListViewModel : ViewModel() {
 
     suspend fun loadMvs(area: String, type: String): Boolean {
         val data = kotlin.runCatching {
-            MvNet.getMvAll(area = area, type = type)
+            MvNet.getMvAll(area = area, type = type, limit = 50)
         }.getOrNull() ?: return false
         if (data.code != 200) return false
         _mvs.value = data.data

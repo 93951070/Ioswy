@@ -42,6 +42,8 @@ kotlin {
             implementation(libs.coil3.network.okhttp)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
+            // Downloader.android.kt 经 CommonApp.app 取 Context（与 app 既有做法一致）
+            implementation(libs.common)
         }
         iosMain.dependencies {
             implementation(libs.coil3.network.ktor3)
