@@ -26,23 +26,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build shared framework
-        run: ./gradlew :shared:linkReleaseFrameworkIosArm64
+        run: ./gradlew :shared:linkDebugFrameworkIosArm64
 
       - name: Build app archive
         run: |
           xcodebuild -project iosApp/iosApp.xcodeproj \
             -target iosApp \
-            -configuration Release \
+            -configuration Debug \
             -sdk iphoneos \
             build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CONFIGURATION_BUILD_DIR=build/Release-iphoneos
+            CONFIGURATION_BUILD_DIR=build/Debug-iphoneos
 
       - name: Package unsigned ipa
         run: |
           mkdir -p build/Payload
-          cp -R build/Release-iphoneos/iosApp.app build/Payload/
+          cp -R build/Debug-iphoneos/iosApp.app build/Payload/
           cd build
           zip -qry ponymusic-unsigned.ipa Payload
           ls -lh ponymusic-unsigned.ipa
