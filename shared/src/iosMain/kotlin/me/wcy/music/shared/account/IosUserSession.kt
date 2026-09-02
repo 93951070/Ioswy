@@ -8,6 +8,7 @@ import me.wcy.music.common.bean.SharedJson
 import me.wcy.music.shared.net.AccountNet
 import me.wcy.music.shared.net.NetResult
 import me.wcy.music.shared.net.SharedNet
+import me.wcy.music.shared.net.sanitizeLoginCookie
 import platform.Foundation.NSUserDefaults
 
 /**
@@ -33,7 +34,7 @@ class IosUserSession : UserSession {
     override fun getUserId(): Long = _profile.value?.userId ?: 0
 
     override suspend fun login(cookie: String): NetResult<ProfileData> {
-        saveCookie(cookie)
+        saveCookie(sanitizeLoginCookie(cookie))
         return try {
             val status = AccountNet.getLoginStatus()
             val profile = status.data.profile

@@ -2,6 +2,7 @@ package me.wcy.music.shared.net
 
 import kotlinx.serialization.json.JsonElement
 import me.wcy.music.common.bean.SharedJson
+import me.wcy.music.common.bean.decodeBean
 import me.wcy.music.discover.playlist.square.bean.PlaylistListData
 import me.wcy.music.mine.collect.song.bean.CollectSongResult
 import me.wcy.music.service.likesong.bean.LikeSongListData
@@ -16,8 +17,7 @@ object MineNet {
         limit: Int = 1000,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): PlaylistListData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "user/playlist",
                 params = listOf(
                     "uid" to uid,
@@ -38,8 +38,7 @@ object MineNet {
         t: Int,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): NetResult<JsonElement> {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "playlist/subscribe",
                 params = listOf(
                     "id" to id,
@@ -62,8 +61,7 @@ object MineNet {
         op: String = "add",
         timestamp: Long = SharedNet.currentTimeMillis()
     ): CollectSongResult {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "playlist/tracks",
                 params = listOf(
                     "pid" to pid,
@@ -85,8 +83,7 @@ object MineNet {
         like: Boolean = true,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): NetResult<JsonElement> {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "like",
                 params = listOf(
                     "id" to id,
@@ -104,8 +101,7 @@ object MineNet {
         uid: Long,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): LikeSongListData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "likelist",
                 params = listOf(
                     "uid" to uid,

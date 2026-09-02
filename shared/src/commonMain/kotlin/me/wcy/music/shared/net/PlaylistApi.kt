@@ -4,6 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SharedJson
+import me.wcy.music.common.bean.decodeBean
 
 @Serializable
 data class CatlistData(
@@ -33,12 +34,11 @@ data class PlaylistListData(
 object PlaylistApi {
 
     suspend fun getCatlist(): CatlistData {
-        return SharedJson.decodeFromString(SharedNet.get("playlist/catlist"))
+        return SharedJson.decodeBean(SharedNet.get("playlist/catlist"))
     }
 
     suspend fun getTopPlaylists(cat: String, limit: Int, offset: Int): PlaylistListData {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "top/playlist",
                 params = listOf(
                     "cat" to cat,

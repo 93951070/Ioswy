@@ -1,6 +1,7 @@
 package me.wcy.music.shared.net
 
 import me.wcy.music.common.bean.SharedJson
+import me.wcy.music.common.bean.decodeBean
 import me.wcy.music.search.bean.HotSearchData
 import me.wcy.music.search.bean.SearchResultData
 
@@ -30,8 +31,7 @@ object SearchNet {
         limit: Int,
         offset: Int,
     ): NetResult<SearchResultData> {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "cloudsearch",
                 params = listOf(
                     "type" to type,
@@ -44,6 +44,6 @@ object SearchNet {
     }
 
     suspend fun getHotSearch(): HotSearchData {
-        return SharedJson.decodeFromString(SharedNet.get("search/hot/detail"))
+        return SharedJson.decodeBean(SharedNet.get("search/hot/detail"))
     }
 }

@@ -7,7 +7,7 @@ import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.shared.util.CoverUtils.asLargeCover
 import me.wcy.music.shared.util.CoverUtils.asSmallCover
 
-@Serializable(with = PlaylistDataJson::class)
+@Serializable
 data class PlaylistData(
     @SerialName("id")
     val id: Long = 0,

@@ -6,6 +6,7 @@ import me.wcy.music.account.bean.QrCodeData
 import me.wcy.music.account.bean.QrCodeKeyData
 import me.wcy.music.account.bean.SendCodeResult
 import me.wcy.music.common.bean.SharedJson
+import me.wcy.music.common.bean.decodeBean
 
 /**
  * 账户相关接口。
@@ -16,8 +17,7 @@ object AccountNet {
         phone: String,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): SendCodeResult {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "captcha/sent",
                 params = listOf(
                     "phone" to phone,
@@ -32,8 +32,7 @@ object AccountNet {
         captcha: String,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): LoginResultData {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "login/cellphone",
                 params = listOf(
                     "phone" to phone,
@@ -47,8 +46,7 @@ object AccountNet {
     suspend fun getQrCodeKey(
         timestamp: Long = SharedNet.currentTimeMillis()
     ): NetResult<QrCodeKeyData> {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "login/qr/key",
                 params = listOf(
                     "timestamp" to timestamp
@@ -61,8 +59,7 @@ object AccountNet {
         key: String,
         timestamp: Long = SharedNet.currentTimeMillis()
     ): NetResult<QrCodeData> {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "login/qr/create",
                 params = listOf(
                     "key" to key,
@@ -77,8 +74,7 @@ object AccountNet {
         timestamp: Long = SharedNet.currentTimeMillis(),
         noCookie: Boolean = true
     ): LoginResultData {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "login/qr/check",
                 params = listOf(
                     "key" to key,
@@ -92,8 +88,7 @@ object AccountNet {
     suspend fun getLoginStatus(
         timestamp: Long = SharedNet.currentTimeMillis()
     ): LoginStatusData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "login/status",
                 params = listOf(
                     "timestamp" to timestamp

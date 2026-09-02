@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
-@Serializable(with = SongDataJson::class)
+@Serializable
 data class SongData(
     @SerialName("id")
     val id: Long = 0,

@@ -18,6 +18,35 @@ import me.wcy.music.common.bean.SharedJson
  */
 const val DEFAULT_BASE_URL = "https://music.wangchenyan.top"
 
+/**
+ * 清洗登录返回的 cookie：网易云 set-cookie 数组 join 后混有
+ * Expires/Path/HttpOnly 等属性段，且可能存在同名清除指令
+ * （MUSIC_U=; Expires=1970）覆盖前面的真实值。
+ * 只保留有效键值对，同名取第一个非空值。
+ */
+fun sanitizeLoginCookie(raw: String): String {
+    val attrs = setOf(
+        "expires", "max-age", "path", "domain",
+        "httponly", "secure", "samesite", "version", "comment"
+    )
+    val seen = LinkedHashMap<String, String>()
+    raw.split(";").forEach { part ->
+        val segment = part.trim()
+        if (segment.isEmpty() || !segment.contains('=')) return@forEach
+        val name = segment.substringBefore('=').trim()
+        val value = segment.substringAfter('=').trim()
+        if (name.isEmpty() || name.lowercase() in attrs) return@forEach
+        if (seen.containsKey(name)) {
+            if (seen[name].isNullOrEmpty() && value.isNotEmpty()) {
+                seen[name] = value
+            }
+            return@forEach
+        }
+        seen[name] = value
+    }
+    return seen.entries.joinToString("; ") { "${it.key}=${it.value}" }
+}
+
 object SharedNet {
     var baseUrl: String = DEFAULT_BASE_URL
     var cookie: String = ""

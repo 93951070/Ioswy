@@ -2,6 +2,7 @@ package me.wcy.music.shared.net
 
 import me.wcy.music.common.bean.LrcDataWrap
 import me.wcy.music.common.bean.SharedJson
+import me.wcy.music.common.bean.decodeBean
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.common.bean.SongUrlData
 import me.wcy.music.discover.banner.BannerListData
@@ -21,19 +22,18 @@ import me.wcy.music.discover.recommend.song.bean.RecommendSongListData
 object DiscoverNet {
 
     suspend fun getRecommendSongs(): NetResult<RecommendSongListData> {
-        return SharedJson.decodeFromString(SharedNet.post("recommend/songs"))
+        return SharedJson.decodeBean(SharedNet.post("recommend/songs"))
     }
 
     suspend fun getRecommendPlaylists(): PlaylistListData {
-        return SharedJson.decodeFromString(SharedNet.post("recommend/resource"))
+        return SharedJson.decodeBean(SharedNet.post("recommend/resource"))
     }
 
     suspend fun getSongUrl(
         id: Long,
         level: String,
     ): NetResult<List<SongUrlData>> {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "song/url/v1",
                 params = listOf(
                     "id" to id,
@@ -46,8 +46,7 @@ object DiscoverNet {
     suspend fun getLrc(
         id: Long,
     ): LrcDataWrap {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "lyric",
                 params = listOf(
                     "id" to id
@@ -59,8 +58,7 @@ object DiscoverNet {
     suspend fun getPlaylistDetail(
         id: Long,
     ): PlaylistDetailData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "playlist/detail",
                 params = listOf(
                     "id" to id
@@ -75,8 +73,7 @@ object DiscoverNet {
         offset: Int? = null,
         timestamp: Long? = null
     ): SongListData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "playlist/track/all",
                 params = listOf(
                     "id" to id,
@@ -89,7 +86,7 @@ object DiscoverNet {
     }
 
     suspend fun getPlaylistTagList(): PlaylistTagListData {
-        return SharedJson.decodeFromString(SharedNet.post("playlist/hot"))
+        return SharedJson.decodeBean(SharedNet.post("playlist/hot"))
     }
 
     suspend fun getPlaylistList(
@@ -97,8 +94,7 @@ object DiscoverNet {
         limit: Int,
         offset: Int,
     ): PlaylistListData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "top/playlist",
                 params = listOf(
                     "cat" to cat,
@@ -110,12 +106,11 @@ object DiscoverNet {
     }
 
     suspend fun getRankingList(): PlaylistListData {
-        return SharedJson.decodeFromString(SharedNet.post("toplist"))
+        return SharedJson.decodeBean(SharedNet.post("toplist"))
     }
 
     suspend fun getBannerList(): BannerListData {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "banner",
                 params = listOf(
                     "type" to 2
@@ -127,8 +122,7 @@ object DiscoverNet {
     suspend fun getPersonalFm(
         timestamp: Long = SharedNet.currentTimeMillis()
     ): PersonalFmData {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "personal_fm",
                 params = listOf(
                     "timestamp" to timestamp
@@ -138,7 +132,7 @@ object DiscoverNet {
     }
 
     suspend fun getCatlist(): CatlistData {
-        return SharedJson.decodeFromString(SharedNet.get("playlist/catlist"))
+        return SharedJson.decodeBean(SharedNet.get("playlist/catlist"))
     }
 
     suspend fun getCommentMusic(
@@ -146,8 +140,7 @@ object DiscoverNet {
         limit: Int = 30,
         offset: Int = 0,
     ): CommentData {
-        return SharedJson.decodeFromString(
-            SharedNet.get(
+        return SharedJson.decodeBean(SharedNet.get(
                 "comment/music",
                 params = listOf(
                     "id" to id,
@@ -164,8 +157,7 @@ object DiscoverNet {
         t: Int,
         type: Int = 0,
     ): CommentOpData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "comment/like",
                 params = listOf(
                     "id" to songId,
@@ -183,8 +175,7 @@ object DiscoverNet {
         t: Int = 1,
         content: String,
     ): CommentOpData {
-        return SharedJson.decodeFromString(
-            SharedNet.post(
+        return SharedJson.decodeBean(SharedNet.post(
                 "comment",
                 params = listOf(
                     "id" to songId,
