@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,10 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.History
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -76,6 +80,7 @@ fun MineScreen(
     signedToday: Boolean,
     onSignin: () -> Unit,
     onMessage: (String) -> Unit = {},
+    onOpenImport: () -> Unit = {},
 ) {
     val profile by profileFlow.collectAsState()
     val likePlaylist by viewModel.likePlaylist.collectAsState()
@@ -86,6 +91,12 @@ fun MineScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var newPlaylistDesc by remember { mutableStateOf("") }
+    var newPlaylistPrivate by remember { mutableStateOf(false) }
+    var manageMode by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<PlaylistData?>(null) }
+    var renameText by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<PlaylistData?>(null) }
+    var unsubTarget by remember { mutableStateOf<PlaylistData?>(null) }
 
     if (showCreateDialog) {
         AlertDialog(
@@ -105,18 +116,38 @@ fun MineScreen(
                         singleLine = true,
                         placeholder = { Text("描述(可选)", fontSize = 13.sp) }
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "隐私歌单",
+                            color = AppThemeColor.TextH2,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = newPlaylistPrivate,
+                            onCheckedChange = { newPlaylistPrivate = it }
+                        )
+                    }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     if (newPlaylistName.isNotBlank()) {
                         scope.launch {
-                            val res = PlaylistManageNet.createPlaylist(newPlaylistName, description = newPlaylistDesc)
+                            val res = PlaylistManageNet.createPlaylist(
+                                newPlaylistName,
+                                privacy = if (newPlaylistPrivate) 10 else 0,
+                                description = newPlaylistDesc
+                            )
                             if (res.code == 200) {
                                 viewModel.updatePlaylist()
                                 showCreateDialog = false
                                 newPlaylistName = ""
                                 newPlaylistDesc = ""
+                                newPlaylistPrivate = false
                             } else {
                                 onMessage("创建失败")
                             }
@@ -126,6 +157,85 @@ fun MineScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) { Text("取消") }
+            }
+        )
+    }
+
+    renameTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { renameTarget = null },
+            title = { Text("重命名歌单") },
+            text = {
+                OutlinedTextField(
+                    value = renameText,
+                    onValueChange = { renameText = it },
+                    singleLine = true,
+                    placeholder = { Text("歌单名", fontSize = 13.sp) }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (renameText.isNotBlank()) {
+                        scope.launch {
+                            val res = PlaylistManageNet.updatePlaylistName(target.id, renameText)
+                            if (res.code == 200) {
+                                viewModel.updatePlaylist()
+                                renameTarget = null
+                            } else {
+                                onMessage(res.msg ?: res.message ?: "重命名失败")
+                            }
+                        }
+                    }
+                }) { Text("确认", color = AppThemeColor.ThemeColor) }
+            },
+            dismissButton = {
+                TextButton(onClick = { renameTarget = null }) { Text("取消") }
+            }
+        )
+    }
+
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("删除歌单") },
+            text = { Text("确认删除歌单「${target.name}」？删除后无法恢复") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        val res = PlaylistManageNet.deletePlaylist(target.id)
+                        if (res.code == 200) {
+                            viewModel.updatePlaylist()
+                        } else {
+                            onMessage(res.msg ?: res.message ?: "删除失败")
+                        }
+                        deleteTarget = null
+                    }
+                }) { Text("删除", color = Color.Red) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTarget = null }) { Text("取消") }
+            }
+        )
+    }
+
+    unsubTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { unsubTarget = null },
+            title = { Text("取消收藏") },
+            text = { Text("确认取消收藏歌单「${target.name}」？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        val res = viewModel.removeCollect(target.id)
+                        if (!res.isSuccess()) {
+                            onMessage(res.msg ?: "取消收藏失败")
+                        }
+                        unsubTarget = null
+                    }
+                }) { Text("确认", color = AppThemeColor.ThemeColor) }
+            },
+            dismissButton = {
+                TextButton(onClick = { unsubTarget = null }) { Text("取消") }
             }
         )
     }
@@ -173,22 +283,39 @@ fun MineScreen(
                 SectionTitle("我喜欢的音乐")
             }
             item {
-                PlaylistRow(listOf(like)) { playlist ->
-                    onOpenPlaylistDetail(playlist, false, true)
-                }
+                PlaylistRow(
+                    playlists = listOf(like),
+                    onItemClick = { playlist ->
+                        onOpenPlaylistDetail(playlist, false, true)
+                    }
+                )
             }
         }
 
         if (myPlaylists.isNotEmpty()) {
             item {
-                SectionTitle("创建歌单(${myPlaylists.size})") {
-                    showCreateDialog = true
-                }
+                SectionTitle(
+                    "创建歌单(${myPlaylists.size})",
+                    onAddClick = { showCreateDialog = true },
+                    onImportClick = onOpenImport,
+                    onManageClick = { manageMode = !manageMode },
+                    manageActive = manageMode
+                )
             }
             item {
-                PlaylistRow(myPlaylists) { playlist ->
-                    onOpenPlaylistDetail(playlist, true, false)
-                }
+                PlaylistRow(
+                    playlists = myPlaylists,
+                    manageMode = manageMode,
+                    onItemClick = { playlist ->
+                        if (manageMode) {
+                            renameText = playlist.name
+                            renameTarget = playlist
+                        } else {
+                            onOpenPlaylistDetail(playlist, true, false)
+                        }
+                    },
+                    onDeleteClick = { playlist -> deleteTarget = playlist }
+                )
             }
         }
 
@@ -205,7 +332,10 @@ fun MineScreen(
                         .background(AppThemeColor.Card)
                 ) {
                     collectPlaylists.forEach { playlist ->
-                        PlaylistItemRow(playlist = playlist) {
+                        PlaylistItemRow(
+                            playlist = playlist,
+                            onUnsubscribeClick = { unsubTarget = playlist }
+                        ) {
                             onOpenPlaylistDetail(playlist, false, false)
                         }
                     }
@@ -424,7 +554,10 @@ private fun MenuCardRow(
 @Composable
 private fun SectionTitle(
     title: String,
-    onAddClick: (() -> Unit)? = null
+    onAddClick: (() -> Unit)? = null,
+    onImportClick: (() -> Unit)? = null,
+    onManageClick: (() -> Unit)? = null,
+    manageActive: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -439,13 +572,34 @@ private fun SectionTitle(
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold
         )
-        if (onAddClick != null) {
-            Text(
-                text = "+ 新建",
-                color = AppThemeColor.ThemeColor,
-                fontSize = 13.sp,
-                modifier = Modifier.clickable(onClick = onAddClick)
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onAddClick != null) {
+                Text(
+                    text = "+ 新建",
+                    color = AppThemeColor.ThemeColor,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable(onClick = onAddClick)
+                )
+            }
+            if (onImportClick != null) {
+                Text(
+                    text = "导入",
+                    color = AppThemeColor.ThemeColor,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable(onClick = onImportClick)
+                )
+            }
+            if (onManageClick != null) {
+                Text(
+                    text = if (manageActive) "完成" else "管理",
+                    color = AppThemeColor.ThemeColor,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable(onClick = onManageClick)
+                )
+            }
         }
     }
 }
@@ -453,18 +607,37 @@ private fun SectionTitle(
 @Composable
 private fun PlaylistRow(
     playlists: List<PlaylistData>,
-    onItemClick: (PlaylistData) -> Unit
+    onItemClick: (PlaylistData) -> Unit,
+    manageMode: Boolean = false,
+    onDeleteClick: ((PlaylistData) -> Unit)? = null
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         contentPadding = PaddingValues(horizontal = 12.dp)
     ) {
         items(playlists, key = { it.id }) { playlist ->
-            PlaylistCard(
-                playlist = playlist,
-                modifier = Modifier.width(120.dp),
-                onClick = { onItemClick(playlist) }
-            )
+            Box {
+                PlaylistCard(
+                    playlist = playlist,
+                    modifier = Modifier.width(120.dp),
+                    onClick = { onItemClick(playlist) }
+                )
+                if (manageMode && onDeleteClick != null) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "删除",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp)
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.5f))
+                            .clickable { onDeleteClick(playlist) }
+                            .padding(4.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -472,6 +645,7 @@ private fun PlaylistRow(
 @Composable
 private fun PlaylistItemRow(
     playlist: PlaylistData,
+    onUnsubscribeClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     Row(
@@ -503,6 +677,17 @@ private fun PlaylistItemRow(
                 color = AppThemeColor.TextH2,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        if (onUnsubscribeClick != null) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "取消收藏",
+                tint = AppThemeColor.TextH2,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onUnsubscribeClick)
             )
         }
         Icon(

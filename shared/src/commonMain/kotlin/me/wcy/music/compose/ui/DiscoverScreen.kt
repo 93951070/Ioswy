@@ -5,58 +5,48 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Slideshow
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
-import me.wcy.music.compose.component.CoverImage
-import me.wcy.music.compose.component.PlaylistCard
 import me.wcy.music.compose.theme.AppThemeColor
-import me.wcy.music.discover.banner.BannerData
+import me.wcy.music.compose.ui.home.CategoryTab
+import me.wcy.music.compose.ui.home.HeartTab
+import me.wcy.music.compose.ui.home.MusicTab
+import me.wcy.music.compose.ui.home.PodcastTab
+import me.wcy.music.compose.ui.home.RecommendTab
 import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
+
+private val HOME_TABS = listOf("心动", "推荐", "音乐", "播客", "分类")
 
 @Composable
 fun DiscoverScreen(
-
     viewModel: DiscoverViewModel,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -81,196 +71,77 @@ fun DiscoverScreen(
     onOpenVideo: () -> Unit = {},
     onOpenDjRank: () -> Unit = {},
 ) {
-    val bannerList by viewModel.bannerList.collectAsState()
-    val recommendPlaylist by viewModel.recommendPlaylist.collectAsState()
-    val rankingList by viewModel.rankingList.collectAsState()
-    val dailySongs by viewModel.dailySongs.collectAsState()
-    val hotArtistList by viewModel.hotArtistList.collectAsState()
-    val highQualityPlaylists by viewModel.highQualityPlaylists.collectAsState()
-    val djRadioList by viewModel.djRadioList.collectAsState()
+    val pagerState = rememberPagerState(pageCount = { HOME_TABS.size })
+    val scope = rememberCoroutineScope()
 
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(bottom = 12.dp)
-    ) {
-        item {
-            DiscoverTitleBar(
-                onOpenDrawer = onOpenDrawer,
-                onOpenSearch = onOpenSearch
-            )
-        }
+    Column(modifier = Modifier.fillMaxSize()) {
+        HomeTitleBar(
+            onOpenDrawer = onOpenDrawer,
+            onOpenSearch = onOpenSearch
+        )
 
-        item {
-            if (bannerList.isNotEmpty()) {
-                BannerPager(bannerList) { banner ->
-                    banner.song?.let(onPlaySong)
+        HomeTabRow(
+            tabs = HOME_TABS,
+            selected = pagerState.currentPage,
+            onSelect = { index ->
+                scope.launch {
+                    pagerState.animateScrollToPage(index)
                 }
             }
-        }
+        )
 
-        item {
-            EntranceRow(
-                onOpenRecommendSong = onOpenRecommendSong,
-                onOpenPersonalFm = onOpenPersonalFm,
-                onOpenPlaylistSquare = onOpenPlaylistSquare,
-                onOpenRanking = onOpenRanking,
-                onOpenArtistList = onOpenArtistList,
-                onOpenNewSong = onOpenNewSong,
-                onOpenDj = onOpenDj,
-                onOpenMvList = onOpenMvList,
-                onOpenVideo = onOpenVideo,
-                onOpenDjRank = onOpenDjRank
-            )
-        }
-
-        if (dailySongs.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "每日推荐",
-                    onMore = onOpenRecommendSong
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            when (page) {
+                0 -> HeartTab(
+                    viewModel = viewModel,
+                    onOpenRecommendSong = onOpenRecommendSong,
+                    onOpenPersonalFm = onOpenPersonalFm,
+                    onOpenPlaylistDetail = onOpenPlaylistDetail,
+                    onPlayPlaylist = onPlayPlaylist,
+                    onPlayDailySong = onPlayDailySong
                 )
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(dailySongs.size, key = { dailySongs[it].id }) { index ->
-                        DailySongCard(
-                            song = dailySongs[index],
-                            onClick = { onPlayDailySong(dailySongs, index) }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (rankingList.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "排行榜",
-                    onMore = onOpenRanking
+                1 -> RecommendTab(
+                    viewModel = viewModel,
+                    onPlaySong = onPlaySong,
+                    onOpenPlaylistDetail = onOpenPlaylistDetail,
+                    onPlayPlaylist = onPlayPlaylist,
+                    onPlayPlaylistSong = onPlayPlaylistSong,
+                    onOpenArtist = onOpenArtist,
+                    onOpenArtistList = onOpenArtistList,
+                    onOpenRanking = onOpenRanking,
+                    onOpenPlaylistSquare = onOpenPlaylistSquare,
+                    onOpenDjRadio = onOpenDjRadio
                 )
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(rankingList, key = { it.id }) { playlist ->
-                        RankingItem(
-                            playlist = playlist,
-                            modifier = Modifier.width(280.dp),
-                            onOpenDetail = { onOpenPlaylistDetail(playlist.id) },
-                            onSongClick = { pos ->
-                                onPlayPlaylistSong(playlist, pos)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (recommendPlaylist.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "推荐歌单",
-                    onMore = onOpenPlaylistSquare
+                2 -> MusicTab(
+                    onOpenNewSong = onOpenNewSong,
+                    onOpenArtistList = onOpenArtistList,
+                    onOpenRanking = onOpenRanking,
+                    onOpenPlaylistSquare = onOpenPlaylistSquare,
+                    onOpenMvList = onOpenMvList,
+                    onOpenVideo = onOpenVideo,
+                    onOpenDjRank = onOpenDjRank
                 )
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(recommendPlaylist, key = { it.id }) { playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            modifier = Modifier.width(120.dp),
-                            onClick = { onOpenPlaylistDetail(playlist.id) },
-                            onPlayClick = {
-                                onPlayPlaylist(playlist)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (hotArtistList.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "热门歌手",
-                    onMore = onOpenArtistList
+                3 -> PodcastTab(
+                    viewModel = viewModel,
+                    onOpenDj = onOpenDj,
+                    onOpenDjRadio = onOpenDjRadio,
+                    onOpenDjRank = onOpenDjRank
                 )
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(hotArtistList, key = { it.id }) { artist ->
-                        ArtistCircleItem(
-                            artist = artist,
-                            onClick = { onOpenArtist(artist.id) }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (highQualityPlaylists.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "热门精选",
-                    onMore = onOpenPlaylistSquare
+                else -> CategoryTab(
+                    onOpenPlaylistDetail = onOpenPlaylistDetail,
+                    onPlayPlaylist = onPlayPlaylist
                 )
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(highQualityPlaylists, key = { it.id }) { playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            modifier = Modifier.width(120.dp),
-                            onClick = { onOpenPlaylistDetail(playlist.id) },
-                            onPlayClick = {
-                                onPlayPlaylist(playlist)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (djRadioList.isNotEmpty()) {
-            item {
-                SectionHeader(
-                    title = "电台精选",
-                    onMore = onOpenDj
-                )
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(djRadioList, key = { it.id }) { radio ->
-                        DjRadioCard(
-                            radio = radio,
-                            onClick = { onOpenDjRadio(radio.id) }
-                        )
-                    }
-                }
             }
         }
     }
 }
 
+/** 标题行：汉堡菜单 + 「首页」标题 + 搜索按钮 */
 @Composable
-private fun DiscoverTitleBar(
+private fun HomeTitleBar(
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit
 ) {
@@ -288,290 +159,68 @@ private fun DiscoverTitleBar(
                 .size(28.dp)
                 .clickable(onClick = onOpenDrawer)
         )
-        Row(
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(
+            text = "首页",
+            color = AppThemeColor.TextH1,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
             modifier = Modifier
-                .padding(start = 16.dp)
-                .height(36.dp)
-                .weight(1f)
-                .clip(RoundedCornerShape(18.dp))
+                .size(36.dp)
+                .clip(CircleShape)
                 .background(AppThemeColor.SearchBar)
                 .clickable(onClick = onOpenSearch),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Search,
                 contentDescription = "搜索",
                 tint = AppThemeColor.TextH2,
-                modifier = Modifier.size(18.dp)
-            )
-            Text(
-                text = "  搜索",
-                color = AppThemeColor.TextH2,
-                fontSize = 14.sp
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
+/** 顶部文字 tab，选中高亮 + 下划线 */
 @Composable
-private fun BannerPager(
-    banners: List<BannerData>,
-    onBannerClick: (BannerData) -> Unit
-) {
-    val pagerState = rememberPagerState(pageCount = { banners.size })
-    HorizontalPager(
-        state = pagerState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(120.dp),
-        contentPadding = PaddingValues(horizontal = 0.dp),
-        pageSpacing = 0.dp
-    ) { page ->
-        val banner = banners[page]
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable { onBannerClick(banner) }
-        ) {
-            CoverImage(
-                url = banner.pic,
-                contentDescription = "Banner",
-                cornerRadius = 12.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-            )
-            Text(
-                text = "${pagerState.currentPage + 1}/${banners.size}",
-                color = Color.White,
-                fontSize = 10.sp,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.Black.copy(alpha = 0.4f))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun EntranceRow(
-    onOpenRecommendSong: () -> Unit,
-    onOpenPersonalFm: () -> Unit,
-    onOpenPlaylistSquare: () -> Unit,
-    onOpenRanking: () -> Unit,
-    onOpenArtistList: () -> Unit,
-    onOpenNewSong: () -> Unit,
-    onOpenDj: () -> Unit,
-    onOpenMvList: () -> Unit,
-    onOpenVideo: () -> Unit,
-    onOpenDjRank: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround
-        ) {
-            EntranceItem(
-                icon = Icons.Filled.DateRange,
-                label = "每日推荐",
-                onClick = onOpenRecommendSong
-            )
-            EntranceItem(
-                icon = Icons.Filled.Radio,
-                label = "私人FM",
-                onClick = onOpenPersonalFm
-            )
-            EntranceItem(
-                icon = Icons.Filled.QueueMusic,
-                label = "歌单",
-                onClick = onOpenPlaylistSquare
-            )
-            EntranceItem(
-                icon = Icons.Filled.BarChart,
-                label = "排行榜",
-                onClick = onOpenRanking
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround
-        ) {
-            EntranceItem(
-                icon = Icons.Filled.Person,
-                label = "歌手",
-                onClick = onOpenArtistList
-            )
-            EntranceItem(
-                icon = Icons.Filled.Star,
-                label = "新歌",
-                onClick = onOpenNewSong
-            )
-            EntranceItem(
-                icon = Icons.Filled.PlayCircle,
-                label = "电台",
-                onClick = onOpenDj
-            )
-            EntranceItem(
-                icon = Icons.Filled.Slideshow,
-                label = "MV",
-                onClick = onOpenMvList
-            )
-            EntranceItem(
-                icon = Icons.Filled.PlayArrow,
-                label = "视频",
-                onClick = onOpenVideo
-            )
-            EntranceItem(
-                icon = Icons.Filled.QueueMusic,
-                label = "电台榜",
-                onClick = onOpenDjRank
-            )
-        }
-    }
-}
-
-@Composable
-private fun EntranceItem(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(AppThemeColor.Card),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = AppThemeColor.ThemeColor,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Text(
-            text = label,
-            color = AppThemeColor.TextH2,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 6.dp)
-        )
-    }
-}
-
-@Composable
-private fun SectionHeader(
-    title: String,
-    onMore: () -> Unit
+private fun HomeTabRow(
+    tabs: List<String>,
+    selected: Int,
+    onSelect: (Int) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = title,
-            color = AppThemeColor.TextH1,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .background(AppThemeColor.ThemeColor.copy(alpha = 0.1f))
-                .clickable(onClick = onMore)
-                .padding(horizontal = 10.dp, vertical = 4.dp)
-        ) {
-            Text(
-                text = "更多",
-                color = AppThemeColor.ThemeColor,
-                fontSize = 12.sp
-            )
-            Icon(
-                imageVector = Icons.Filled.ChevronRight,
-                contentDescription = "更多",
-                tint = AppThemeColor.ThemeColor,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun RankingItem(
-    playlist: PlaylistData,
-    modifier: Modifier = Modifier,
-    onOpenDetail: () -> Unit,
-    onSongClick: (Int) -> Unit
-) {
-    Row(
-        modifier = modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppThemeColor.Card)
-            .clickable(onClick = onOpenDetail),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CoverImage(
-            url = playlist.getSmallCover(),
-            cornerRadius = 10.dp,
-            modifier = Modifier
-                .padding(12.dp)
-                .size(100.dp)
-        )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 12.dp)
-        ) {
-            Text(
-                text = playlist.name,
-                color = AppThemeColor.TextH1,
-                fontSize = 15.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            playlist.songList.take(3).forEachIndexed { index, song ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+        tabs.forEachIndexed { index, title ->
+            val isSelected = index == selected
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable { onSelect(index) }
+                    .padding(horizontal = 6.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = title,
+                    color = if (isSelected) AppThemeColor.ThemeColor else AppThemeColor.TextH2,
+                    fontSize = 16.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                )
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSongClick(index) }
-                        .padding(vertical = 3.dp)
-                ) {
-                    Text(
-                        text = "${index + 1}",
-                        color = AppThemeColor.TextH2,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                    Text(
-                        text = song.name,
-                        color = AppThemeColor.TextH2,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                        .padding(top = 3.dp)
+                        .width(20.dp)
+                        .height(if (isSelected) 3.dp else 0.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(AppThemeColor.ThemeColor)
+                )
             }
         }
     }

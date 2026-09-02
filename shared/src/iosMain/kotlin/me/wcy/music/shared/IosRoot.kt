@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -127,6 +128,8 @@ import me.wcy.music.mine.extra.cloud.CloudDiskViewModel
 import me.wcy.music.mine.extra.msg.MsgCenterScreen
 import me.wcy.music.mine.extra.msg.MsgDetailScreen
 import me.wcy.music.compose.ui.VideoScreen
+import me.wcy.music.compose.ui.ImportPlaylistScreen
+import me.wcy.music.compose.ui.ImportPlaylistViewModel
 import me.wcy.music.compose.ui.DjRankScreen
 import me.wcy.music.compose.ui.CommentFloorScreen
 import me.wcy.music.discover.comment.viewmodel.CommentFloorViewModel
@@ -141,9 +144,12 @@ import me.wcy.music.mv.detail.viewmodel.MvDetailViewModel
 import me.wcy.music.mv.viewmodel.MvListViewModel
 import me.wcy.music.personalnewsong.NewSongScreen
 import me.wcy.music.personalnewsong.viewmodel.NewSongViewModel
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
 
 private enum class IosTab(val label: String) {
     Discover("发现"),
@@ -201,6 +207,7 @@ private sealed interface IosPage {
     data class MsgDetail(val uid: Long, val nickname: String) : IosPage
     data object Video : IosPage
     data object DjRank : IosPage
+    data object ImportPlaylist : IosPage
     data class CommentFloor(
         val resourceId: Long,
         val resourceType: Int,
@@ -440,6 +447,7 @@ fun IosRoot() {
                                 onOpenPlaylistDetail = { playlist, realtimeData, isLike ->
                                     push(IosPage.PlaylistDetail(playlist.id, realtimeData, isLike))
                                 },
+                                onOpenImport = { push(IosPage.ImportPlaylist) },
                                 signedToday = todaySignState == todayString(),
                                 onSignin = {
                                     NSUserDefaults.standardUserDefaults.setObject(todayString(), forKey = KEY_SIGN_DATE)
@@ -603,7 +611,8 @@ fun IosRoot() {
                             onBack = { pop() },
                             onOpenFloor = { pid ->
                                 push(IosPage.CommentFloor(page.id, 1, pid))
-                            }
+                            },
+                            onOpenMv = { mvId -> push(IosPage.MvDetail(mvId)) }
                         )
                     }
                     IosPage.DjRecommend -> {
@@ -684,6 +693,11 @@ fun IosRoot() {
                     IosPage.DjRank -> DjRankScreen(
                         onBack = { pop() },
                         onOpenRadio = { id -> push(IosPage.DjDetail(id)) }
+                    )
+
+                    IosPage.ImportPlaylist -> ImportPlaylistScreen(
+                        viewModel = remember { ImportPlaylistViewModel() },
+                        onBack = { pop() }
                     )
 
                     is IosPage.CommentFloor -> CommentFloorScreen(
@@ -954,6 +968,17 @@ private fun PlayingPage(
 ) {
     val commentViewModel = remember { CommentViewModel(IosMyCommentStore) }
     val currentSong by engine.currentSong.collectAsState()
+
+    // 切后台回来后同步真实播放态：中断/后台期间 AVPlayer 状态漂移，周期观察器停摆，StateFlow 可能残留旧值
+    DisposableEffect(Unit) {
+        val token = NSNotificationCenter.defaultCenter.addObserverForName(
+            name = UIApplicationDidBecomeActiveNotification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue
+        ) { _ -> engine.refreshPlayingState() }
+        onDispose { NSNotificationCenter.defaultCenter.removeObserver(token) }
+    }
+
     var lrcContent by remember { mutableStateOf("") }
     var lrcLabel by remember { mutableStateOf("歌词加载中…") }
     var menuSong by remember { mutableStateOf<SongData?>(null) }

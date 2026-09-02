@@ -31,4 +31,5 @@ object RoutePath {
     const val VIDEO = "/video"
     const val DJ_RANK = "/dj_rank"
     const val COMMENT_FLOOR = "/comment_floor"
+    const val IMPORT_PLAYLIST = "/import_playlist"
 }

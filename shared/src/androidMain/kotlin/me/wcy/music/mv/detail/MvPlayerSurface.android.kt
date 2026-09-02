@@ -1,5 +1,9 @@
 package me.wcy.music.mv.detail
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -26,10 +30,25 @@ actual fun MvPlayerSurface(url: String, modifier: Modifier) {
             PlayerView(ctx).apply {
                 this.player = player
                 useController = true
+                // PlayerView 自带全屏按钮：进横屏 / 退回竖屏
+                setFullscreenButtonClickListener { isFullScreen ->
+                    val activity = ctx.findActivity()
+                    activity?.requestedOrientation = if (isFullScreen) {
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                    }
+                }
             }
         }
     )
     DisposableEffect(url) {
         onDispose { player.release() }
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

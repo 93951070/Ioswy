@@ -17,6 +17,7 @@ import platform.AVFoundation.*
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSNumber
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDefaults
@@ -60,6 +61,11 @@ class IosPlayerEngine : PlayerEngine {
 
     private var endObserver: NSObjectProtocol? = null
 
+    private var interruptionObserver: NSObjectProtocol? = null
+
+    /** 中断期间是否在播放，Ended 时据此决定是否恢复 */
+    private var playingWhenInterrupted = false
+
     /** 连续取流失败计数，超过队列长度自动停，防止空队列循环 advance */
     private var resolveFailCount = 0
 
@@ -91,6 +97,34 @@ class IosPlayerEngine : PlayerEngine {
             `object` = null,
             queue = NSOperationQueue.mainQueue
         ) { _ -> onItemEnded() }
+
+        // 音频会话中断（电话/闹钟/Siri）：Ended 时若此前在播则恢复，并同步一次真实状态。
+        // ponytail: 中断类型用 stringValue 解析（Began="1"/Ended="0"），绕开 NSNumber 数值绑定类型的不确定性
+        interruptionObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+            name = AVAudioSessionInterruptionNotification,
+            `object` = null,
+            queue = NSOperationQueue.mainQueue
+        ) { note ->
+            val type = note.userInfo?.get(AVAudioSessionInterruptionTypeKey) as? NSNumber
+            when (type?.stringValue) {
+                "1" -> playingWhenInterrupted = _isPlaying.value
+                "0" -> {
+                    if (playingWhenInterrupted) {
+                        player.play()
+                    }
+                    refreshPlayingState()
+                }
+            }
+        }
+    }
+
+    /** 切后台/中断等状态漂移后同步真实播放态与缓冲态（didBecomeActive 与中断回调共用） */
+    fun refreshPlayingState() {
+        _isPlaying.value = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
+        _bufferingPercent.value = when (player.currentItem?.status) {
+            AVPlayerItemStatusReadyToPlay, AVPlayerItemStatusFailed, null -> 0
+            else -> 100
+        }
     }
 
     /** 直接暂停（MV 视频播放等场景需要停掉音乐，与 playPause 的 toggle 语义不同） */
