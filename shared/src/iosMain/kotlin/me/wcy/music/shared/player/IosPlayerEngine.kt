@@ -20,7 +20,6 @@ import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
 import platform.AVFoundation.AVPlayerItemStatusFailed
 import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
 import platform.AVFoundation.AVPlayerTimeControlStatusPlaying
-import platform.AVFoundation.AVQueuePlayer
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
@@ -39,7 +38,7 @@ import platform.darwin.dispatch_get_main_queue
 class IosPlayerEngine : PlayerEngine {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val player = AVQueuePlayer()
+    private val player: AVPlayer = AVPlayer()
 
     private val _playlist = MutableStateFlow<List<SongData>>(emptyList())
     override val playlist: StateFlow<List<SongData>> = _playlist.asStateFlow()
@@ -71,7 +70,6 @@ class IosPlayerEngine : PlayerEngine {
         runCatching {
             val session = AVAudioSession.sharedInstance()
             session.setCategory(AVAudioSessionCategoryPlayback, null)
-            session.setActive(true, null)
         }
 
         // 0.5s 周期回调：同步进度、播放态、缓冲态（暂停时也回调，顺带兜底同步 isPlaying）
