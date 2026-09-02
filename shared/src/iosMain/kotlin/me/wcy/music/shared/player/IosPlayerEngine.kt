@@ -104,7 +104,8 @@ class IosPlayerEngine : PlayerEngine {
             name = AVAudioSessionInterruptionNotification,
             `object` = null,
             queue = NSOperationQueue.mainQueue
-        ) { note ->
+        ) { noteArg ->
+            val note = noteArg ?: return@addObserverForName
             val type = note.userInfo?.get(AVAudioSessionInterruptionTypeKey) as? NSNumber
             when (type?.stringValue) {
                 "1" -> playingWhenInterrupted = _isPlaying.value
