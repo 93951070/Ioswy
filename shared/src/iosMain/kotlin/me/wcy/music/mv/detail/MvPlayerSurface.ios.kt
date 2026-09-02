@@ -6,10 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
 import kotlinx.cinterop.ExperimentalForeignApi
-import platform.AVFoundation.AVLayerVideoGravityResizeAspect
-import platform.AVFoundation.AVPlayer
-import platform.AVFoundation.AVPlayerItem
-import platform.AVFoundation.AVPlayerLayer
+import platform.AVFoundation.*
 import platform.Foundation.NSURL
 import platform.UIKit.UIView
 
@@ -17,12 +14,13 @@ import platform.UIKit.UIView
 @Composable
 actual fun MvPlayerSurface(url: String, modifier: Modifier) {
     val player = remember(url) {
-        AVPlayer().apply {
-            NSURL.URLWithString(url)?.let {
-                replaceCurrentItemWithPlayerItem(AVPlayerItem(it))
-            }
-            play()
+        val p = AVPlayer()
+        val nsUrl = NSURL.URLWithString(url)
+        if (nsUrl != null) {
+            p.replaceCurrentItemWithPlayerItem(AVPlayerItem(nsUrl))
         }
+        p.play()
+        p
     }
     UIKitView(
         modifier = modifier,
@@ -36,8 +34,13 @@ actual fun MvPlayerSurface(url: String, modifier: Modifier) {
             container
         },
         update = { container ->
-            (container.layer.sublayers?.firstOrNull() as? AVPlayerLayer)?.frame = container.bounds
-        },
-        onRelease = { player.pause() }
+            val sublayer = container.layer.sublayers?.firstOrNull() as? AVPlayerLayer
+            if (sublayer != null) {
+                sublayer.frame = container.bounds
+            }
+        }
     )
+    DisposableEffect(url) {
+        onDispose { player.pause() }
+    }
 }
