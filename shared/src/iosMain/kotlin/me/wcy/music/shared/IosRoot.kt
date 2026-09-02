@@ -126,6 +126,10 @@ import me.wcy.music.mine.extra.cloud.CloudDiskScreen
 import me.wcy.music.mine.extra.cloud.CloudDiskViewModel
 import me.wcy.music.mine.extra.msg.MsgCenterScreen
 import me.wcy.music.mine.extra.msg.MsgDetailScreen
+import me.wcy.music.compose.ui.VideoScreen
+import me.wcy.music.compose.ui.DjRankScreen
+import me.wcy.music.compose.ui.CommentFloorScreen
+import me.wcy.music.discover.comment.viewmodel.CommentFloorViewModel
 import me.wcy.music.mine.extra.msg.MsgCenterViewModel
 import me.wcy.music.mine.extra.recent.RecentPlayScreen
 import me.wcy.music.mine.extra.recent.RecentPlayViewModel
@@ -195,6 +199,13 @@ private sealed interface IosPage {
     data object CloudDisk : IosPage
     data object MsgCenter : IosPage
     data class MsgDetail(val uid: Long, val nickname: String) : IosPage
+    data object Video : IosPage
+    data object DjRank : IosPage
+    data class CommentFloor(
+        val resourceId: Long,
+        val resourceType: Int,
+        val parentCommentId: Long
+    ) : IosPage
 }
 
 @Composable
@@ -410,7 +421,9 @@ fun IosRoot() {
                                     engine.playSongList(songs, index)
                                 },
                                 onOpenArtist = { id -> push(IosPage.ArtistDetail(id)) },
-                                onOpenDjRadio = { id -> push(IosPage.DjDetail(id)) }
+                                onOpenDjRadio = { id -> push(IosPage.DjDetail(id)) },
+                                onOpenVideo = { push(IosPage.Video) },
+                                onOpenDjRank = { push(IosPage.DjRank) }
                             )
                             else -> MineScreen(
                                 viewModel = mineViewModel,
@@ -581,7 +594,10 @@ fun IosRoot() {
                         MvDetailScreen(
                             viewModel = vm,
                             mvid = page.id,
-                            onBack = { pop() }
+                            onBack = { pop() },
+                            onOpenFloor = { pid ->
+                                push(IosPage.CommentFloor(page.id, 1, pid))
+                            }
                         )
                     }
                     IosPage.DjRecommend -> {
@@ -598,7 +614,10 @@ fun IosRoot() {
                             viewModel = vm,
                             rid = page.rid,
                             onBack = { pop() },
-                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) }
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) },
+                            onOpenFloor = { pid ->
+                                push(IosPage.CommentFloor(page.rid, 4, pid))
+                            }
                         )
                     }
                     IosPage.NewSong -> {
@@ -651,6 +670,21 @@ fun IosRoot() {
                     is IosPage.MsgDetail -> MsgDetailScreen(
                         uid = page.uid,
                         nickname = page.nickname,
+                        onBack = { pop() }
+                    )
+
+                    IosPage.Video -> VideoScreen(onBack = { pop() })
+
+                    IosPage.DjRank -> DjRankScreen(
+                        onBack = { pop() },
+                        onOpenRadio = { id -> push(IosPage.DjDetail(id)) }
+                    )
+
+                    is IosPage.CommentFloor -> CommentFloorScreen(
+                        viewModel = remember { CommentFloorViewModel() },
+                        resourceId = page.resourceId,
+                        resourceType = page.resourceType,
+                        parentCommentId = page.parentCommentId,
                         onBack = { pop() }
                     )
                 }
@@ -948,6 +982,11 @@ private fun PlayingPage(
         onOpenMenu = { song, _ -> menuSong = song },
         onDownload = { onMessage("敬请期待") },
         onMessage = onMessage,
+        onOpenFloor = { pid ->
+            engine.currentSong.value?.let { song ->
+                push(IosPage.CommentFloor(song.id, 0, pid))
+            }
+        },
         soundQuality = playQuality,
         onSelectQuality = {},
         lrcContent = lrcContent,

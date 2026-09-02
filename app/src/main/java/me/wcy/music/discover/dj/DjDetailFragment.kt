@@ -43,7 +43,15 @@ class DjDetailFragment : BaseMusicFragment() {
                         rid = id,
                         onBack = { finish() },
                         onPlaySongs = { songs, index -> playSongs(songs, index) },
-                        onMessage = { toast(it) }
+                        onMessage = { toast(it) },
+                        onOpenFloor = { pid ->
+                            CRouter.with(requireActivity())
+                                .url(RoutePath.COMMENT_FLOOR)
+                                .extra("resourceId", id)
+                                .extra("resourceType", 4)
+                                .extra("parentCommentId", pid)
+                                .start()
+                        }
                     )
                 }
             }

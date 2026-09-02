@@ -47,10 +47,12 @@ import me.wcy.music.shared.util.formatPlayCount
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MvDetailScreen(
+
     viewModel: MvDetailViewModel,
     mvid: Long,
     onBack: () -> Unit,
-    onMessage: (String) -> Unit = {}
+    onMessage: (String) -> Unit = {},
+    onOpenFloor: (parentCommentId: Long) -> Unit = {},
 ) {
     LaunchedEffect(mvid) {
         viewModel.init(mvid)
@@ -102,7 +104,7 @@ fun MvDetailScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Color.White
         ) {
-            CommentPanel(commentViewModel, onMessage)
+            CommentPanel(commentViewModel, onMessage, onOpenFloor = onOpenFloor)
         }
     }
 }

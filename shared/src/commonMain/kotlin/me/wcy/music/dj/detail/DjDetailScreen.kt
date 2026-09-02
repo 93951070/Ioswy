@@ -52,11 +52,13 @@ import me.wcy.music.shared.util.formatPlayCount
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DjDetailScreen(
+
     viewModel: DjDetailViewModel,
     rid: Long,
     onBack: () -> Unit,
     onPlaySongs: (List<SongData>, Int) -> Unit,
-    onMessage: (String) -> Unit = {}
+    onMessage: (String) -> Unit = {},
+    onOpenFloor: (parentCommentId: Long) -> Unit = {},
 ) {
     val radio by viewModel.radio.collectAsState()
     val programs by viewModel.programs.collectAsState()
@@ -181,7 +183,7 @@ fun DjDetailScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Color.White
         ) {
-            CommentPanel(commentViewModel, onMessage)
+            CommentPanel(commentViewModel, onMessage, onOpenFloor = onOpenFloor)
         }
     }
 }

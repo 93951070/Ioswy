@@ -33,6 +33,8 @@ data class CommentItem(
     val likedCount: Long = 0,
     @SerialName("liked")
     val liked: Boolean = false,
+    @SerialName("replyCount")
+    val replyCount: Long = 0,
 )
 
 @Serializable

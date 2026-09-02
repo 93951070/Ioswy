@@ -1,4 +1,4 @@
-package me.wcy.music.mine.extra
+package me.wcy.music.discover.video
 
 import android.view.View
 import androidx.compose.ui.platform.ComposeView
@@ -7,28 +7,21 @@ import me.wcy.music.common.BaseMusicFragment
 import me.wcy.music.consts.RoutePath
 import me.wcy.router.annotation.Route
 import me.wcy.music.compose.theme.MusicTheme
-import me.wcy.music.mine.extra.msg.MsgDetailScreen
+import me.wcy.music.compose.ui.VideoScreen
 
-@Route(RoutePath.MSG_DETAIL)
+@Route(RoutePath.VIDEO)
 @AndroidEntryPoint
-class MsgDetailFragment : BaseMusicFragment() {
+class VideoFragment : BaseMusicFragment() {
     private var composeView: ComposeView? = null
 
     override fun getRootView(): View {
-        val uid = requireArguments().getLong("uid")
-        val nickname = requireArguments().getString("nickname").orEmpty()
         return composeView ?: ComposeView(requireContext()).also { view ->
             view.setContent {
                 MusicTheme {
-                    MsgDetailScreen(
-                        uid = uid,
-                        nickname = nickname,
-                        onBack = { finish() }
-                    )
+                    VideoScreen(onBack = { finish() })
                 }
             }
             composeView = view
         }
     }
-
 }

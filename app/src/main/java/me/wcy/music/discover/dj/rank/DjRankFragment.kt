@@ -1,34 +1,36 @@
-package me.wcy.music.mine.extra
+package me.wcy.music.discover.dj.rank
 
 import android.view.View
 import androidx.compose.ui.platform.ComposeView
 import dagger.hilt.android.AndroidEntryPoint
 import me.wcy.music.common.BaseMusicFragment
-import me.wcy.music.consts.RoutePath
 import me.wcy.router.annotation.Route
 import me.wcy.music.compose.theme.MusicTheme
-import me.wcy.music.mine.extra.msg.MsgDetailScreen
+import me.wcy.music.compose.ui.DjRankScreen
+import me.wcy.music.consts.RoutePath
+import me.wcy.router.CRouter
 
-@Route(RoutePath.MSG_DETAIL)
+@Route(RoutePath.DJ_RANK)
 @AndroidEntryPoint
-class MsgDetailFragment : BaseMusicFragment() {
+class DjRankFragment : BaseMusicFragment() {
     private var composeView: ComposeView? = null
 
     override fun getRootView(): View {
-        val uid = requireArguments().getLong("uid")
-        val nickname = requireArguments().getString("nickname").orEmpty()
         return composeView ?: ComposeView(requireContext()).also { view ->
             view.setContent {
                 MusicTheme {
-                    MsgDetailScreen(
-                        uid = uid,
-                        nickname = nickname,
-                        onBack = { finish() }
+                    DjRankScreen(
+                        onBack = { finish() },
+                        onOpenRadio = { id ->
+                            CRouter.with(requireActivity())
+                                .url(RoutePath.DJ_DETAIL)
+                                .extra("id", id)
+                                .start()
+                        }
                     )
                 }
             }
             composeView = view
         }
     }
-
 }

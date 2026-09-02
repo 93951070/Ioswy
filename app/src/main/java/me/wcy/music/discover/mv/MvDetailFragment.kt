@@ -7,6 +7,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import me.wcy.music.common.BaseMusicFragment
 import me.wcy.music.compose.theme.MusicTheme
 import me.wcy.music.consts.RoutePath
+import me.wcy.router.CRouter
 import me.wcy.music.mv.detail.MvDetailScreen
 import me.wcy.music.mv.detail.viewmodel.MvDetailViewModel
 import me.wcy.router.annotation.Route
@@ -29,7 +30,15 @@ class MvDetailFragment : BaseMusicFragment() {
                     MvDetailScreen(
                         viewModel = viewModel,
                         mvid = id,
-                        onBack = { finish() }
+                        onBack = { finish() },
+                        onOpenFloor = { pid ->
+                            CRouter.with(requireActivity())
+                                .url(RoutePath.COMMENT_FLOOR)
+                                .extra("resourceId", id)
+                                .extra("resourceType", 1)
+                                .extra("parentCommentId", pid)
+                                .start()
+                        }
                     )
                 }
             }

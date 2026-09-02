@@ -85,6 +85,7 @@ import me.wcy.music.shared.player.PlayerEngine
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayingScreen(
+
     playerEngine: PlayerEngine,
     commentViewModel: CommentViewModel,
     onClose: () -> Unit,
@@ -98,7 +99,8 @@ fun PlayingScreen(
     onSelectQuality: (String) -> Unit,
     lrcContent: String,
     onUpdateLrc: (Long) -> Unit,
-    lrcLabel: String
+    lrcLabel: String,
+    onOpenFloor: (parentCommentId: Long) -> Unit = {},
 ) {
     val currentSong by playerEngine.currentSong.collectAsState()
     val isPlaying by playerEngine.isPlaying.collectAsState()
@@ -285,7 +287,7 @@ fun PlayingScreen(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = Color.White
         ) {
-            CommentPanel(commentViewModel, onMessage)
+            CommentPanel(commentViewModel, onMessage, onOpenFloor = onOpenFloor)
         }
     }
 

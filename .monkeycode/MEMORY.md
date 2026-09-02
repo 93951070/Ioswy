@@ -114,4 +114,15 @@ Entries discovered by the Agent during task execution should follow this format:
 - Instructions:
   - 本地是 Linux，KGP 会自动禁用全部 K/N 编译任务（compileKotlinIosSimulatorArm64 显示 SKIPPED, enabled=false）：本地跑 iOS 编译永远假成功，iosMain 代码只有云端 macOS runner 能真验证
   - iOS 编译错误必须靠云端构建日志定位：下载 run logs zip 后 grep "e: file:"；修完直接推云端验证，本地无 iOS 编译能力
-  - K/N 编写规范（踩坑汇总）：ObjC 框架 import 用通配（platform.AVFoundation.*）；NSURL.URLWithString 可空需判 null 后再传；AVPlayer 调用写顺序语句（apply 嵌套 lambda 会触发类型推断失败）；UIKitView 只用 modifier/factory/update 三参（onRelease 签名跨版本易错），释放用 DisposableEffect
+   - K/N 编写规范（踩坑汇总）：ObjC 框架 import 用通配（platform.AVFoundation.*）；NSURL.URLWithString 可空需判 null 后再传；AVPlayer 调用写顺序语句（apply 嵌套 lambda 会触发类型推断失败）；UIKitView 只用 modifier/factory/update 三参（onRelease 签名跨版本易错），释放用 DisposableEffect
+
+[Project Knowledge Summary]
+- Date: 2026-09-02
+- Context: 评论域升级 comment/new + 楼中楼时用 curl 实测本地接口发现
+- Category: Environment Configuration | Troubleshooting & Debugging
+- Instructions:
+  - comment/new 的 cursor 是不透明字符串（时间戳或 normalHot#N），原样回传即可；sortType=3/2 按 cursor 正常翻页，sortType=1（推荐）翻页怪异：page1 只回少量条目，page2 一次性吐完剩余并 hasMore=false——列表层靠 hasMore 守卫停住即可，勿按 pageSize 假设条数
+  - comment/floor 的翻页游标 time = 本页最后一条回复的时间戳（Long），原样回传；parentCommentId 必须真实存在否则 code 400
+  - 测试 cookie 对歌曲发表/回复评论（comment t=1/t=2）均被 401「无法评论该资源」拒绝，是账号权限限制；发送链路只能验证参数形态与错误信息冒泡
+  - CommentItem bean 早期没有 replyCount 字段（接口实际有），新增评论展示字段前先 curl 核对再补 bean
+

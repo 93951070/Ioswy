@@ -27,8 +27,11 @@ import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,6 +56,7 @@ import me.wcy.music.mine.extra.MineExtraNet
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.component.PlaylistCard
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.shared.net.PlaylistManageNet
 import me.wcy.music.mine.home.viewmodel.MineViewModel
 
 @Composable
@@ -71,6 +75,7 @@ fun MineScreen(
     onOpenPlaylistDetail: (PlaylistData, Boolean, Boolean) -> Unit,
     signedToday: Boolean,
     onSignin: () -> Unit,
+    onMessage: (String) -> Unit = {},
 ) {
     val profile by profileFlow.collectAsState()
     val likePlaylist by viewModel.likePlaylist.collectAsState()
@@ -78,6 +83,52 @@ fun MineScreen(
     val collectPlaylists by viewModel.collectPlaylists.collectAsState()
     val scope = rememberCoroutineScope()
     val signedIn = signedToday
+    var showCreateDialog by remember { mutableStateOf(false) }
+    var newPlaylistName by remember { mutableStateOf("") }
+    var newPlaylistDesc by remember { mutableStateOf("") }
+
+    if (showCreateDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title = { Text("新建歌单") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = newPlaylistName,
+                        onValueChange = { newPlaylistName = it },
+                        singleLine = true,
+                        placeholder = { Text("歌单名", fontSize = 13.sp) }
+                    )
+                    OutlinedTextField(
+                        value = newPlaylistDesc,
+                        onValueChange = { newPlaylistDesc = it },
+                        singleLine = true,
+                        placeholder = { Text("描述(可选)", fontSize = 13.sp) }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newPlaylistName.isNotBlank()) {
+                        scope.launch {
+                            val res = PlaylistManageNet.createPlaylist(newPlaylistName, description = newPlaylistDesc)
+                            if (res.code == 200) {
+                                viewModel.updatePlaylist()
+                                showCreateDialog = false
+                                newPlaylistName = ""
+                                newPlaylistDesc = ""
+                            } else {
+                                onMessage("创建失败")
+                            }
+                        }
+                    }
+                }) { Text("创建", color = AppThemeColor.ThemeColor) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false }) { Text("取消") }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -130,7 +181,9 @@ fun MineScreen(
 
         if (myPlaylists.isNotEmpty()) {
             item {
-                SectionTitle("创建歌单(${myPlaylists.size})")
+                SectionTitle("创建歌单(${myPlaylists.size})") {
+                    showCreateDialog = true
+                }
             }
             item {
                 PlaylistRow(myPlaylists) { playlist ->
@@ -369,14 +422,32 @@ private fun MenuCardRow(
 }
 
 @Composable
-private fun SectionTitle(title: String) {
-    Text(
-        text = title,
-        color = AppThemeColor.TextH1,
-        fontSize = 15.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(horizontal = 16.dp)
-    )
+private fun SectionTitle(
+    title: String,
+    onAddClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = AppThemeColor.TextH1,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
+        )
+        if (onAddClick != null) {
+            Text(
+                text = "+ 新建",
+                color = AppThemeColor.ThemeColor,
+                fontSize = 13.sp,
+                modifier = Modifier.clickable(onClick = onAddClick)
+            )
+        }
+    }
 }
 
 @Composable

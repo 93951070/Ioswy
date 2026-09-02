@@ -25,6 +25,7 @@ import me.wcy.music.common.dialog.songmenu.items.CollectMenuItem
 import me.wcy.music.compose.theme.MusicTheme
 import me.wcy.music.compose.ui.PlayingScreen
 import me.wcy.music.consts.RoutePath
+import me.wcy.router.CRouter
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.discover.comment.MyCommentStore
 import me.wcy.music.discover.comment.viewmodel.CommentViewModel
@@ -110,6 +111,16 @@ class PlayingActivity : BaseMusicActivity() {
                     onOpenMenu = { song, songId -> showSongMenu(song, songId) },
                     onDownload = { toast("敬请期待") },
                     onMessage = { toast(it) },
+                    onOpenFloor = { pid ->
+                        val songId = playerEngine.currentSong.value?.id
+                        if (songId == null || songId <= 0) return@PlayingScreen
+                        CRouter.with(this@PlayingActivity)
+                            .url(RoutePath.COMMENT_FLOOR)
+                            .extra("resourceId", songId)
+                            .extra("resourceType", 0)
+                            .extra("parentCommentId", pid)
+                            .start()
+                    },
                     soundQuality = ConfigPreferences.playSoundQuality,
                     onSelectQuality = { level ->
                         if (level != ConfigPreferences.playSoundQuality) {

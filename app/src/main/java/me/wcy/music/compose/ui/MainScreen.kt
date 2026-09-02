@@ -43,6 +43,8 @@ import me.wcy.music.R
 import me.wcy.music.account.service.UserService
 import me.wcy.music.compose.component.PlayBar
 import androidx.compose.ui.platform.LocalContext
+import me.wcy.music.consts.RoutePath
+import me.wcy.router.CRouter
 import me.wcy.music.compose.theme.AppThemeColor
 import me.wcy.music.storage.preference.ConfigPreferences
 import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
@@ -100,7 +102,13 @@ fun MainScreen(
                     onOpenNewSong = onOpenNewSong,
                     onOpenDj = onOpenDj,
                     onOpenMvList = onOpenMvList,
-                    onOpenPlaying = onOpenPlaying
+                    onOpenPlaying = onOpenPlaying,
+                    onOpenVideo = {
+                        CRouter.with(context).url(RoutePath.VIDEO).start()
+                    },
+                    onOpenDjRank = {
+                        CRouter.with(context).url(RoutePath.DJ_RANK).start()
+                    }
                 )
                 NaviTab.Mine -> MineScreen(
                     viewModel = mineViewModel,

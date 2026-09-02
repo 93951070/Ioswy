@@ -28,7 +28,9 @@ fun DiscoverScreen(
     onOpenNewSong: () -> Unit,
     onOpenDj: () -> Unit,
     onOpenMvList: () -> Unit,
-    onOpenPlaying: () -> Unit
+    onOpenPlaying: () -> Unit,
+    onOpenVideo: () -> Unit = {},
+    onOpenDjRank: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
 
@@ -48,6 +50,8 @@ fun DiscoverScreen(
     DiscoverScreen(
         viewModel = viewModel,
         onOpenDrawer = onOpenDrawer,
+        onOpenVideo = onOpenVideo,
+        onOpenDjRank = onOpenDjRank,
         onOpenSearch = onOpenSearch,
         onOpenPlaylistDetail = onOpenPlaylistDetail,
         onOpenRanking = onOpenRanking,

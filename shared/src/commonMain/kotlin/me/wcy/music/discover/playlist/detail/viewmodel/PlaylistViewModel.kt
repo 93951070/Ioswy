@@ -1,14 +1,18 @@
 package me.wcy.music.discover.playlist.detail.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
+import me.wcy.music.shared.net.AccountNet
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.MineNet
 import me.wcy.music.shared.net.NetResult
+import me.wcy.music.shared.net.PlaylistManageNet
 import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.shared.net.apiCall
 
@@ -24,6 +28,9 @@ class PlaylistViewModel(
 
     private val _songList = MutableStateFlow<List<SongData>>(emptyList())
     val songList: StateFlow<List<SongData>> = _songList.asStateFlow()
+
+    private val _myUserId = MutableStateFlow(0L)
+    val myUserId: StateFlow<Long> = _myUserId.asStateFlow()
 
     private var playlistId = 0L
     private var realtimeData = false
@@ -53,7 +60,17 @@ class PlaylistViewModel(
         }
         _playlistData.value = detail.playlist
         _songList.value = songListData.songs
+        fetchMyUserId()
         return NetResult(code = 200)
+    }
+
+    /** 拉当前登录 userId 用于判断歌单创建者（失败置 0，视为非创建者） */
+    private fun fetchMyUserId() {
+        if (_myUserId.value != 0L) return
+        viewModelScope.launch {
+            val res = kotlin.runCatching { AccountNet.getLoginStatus() }.getOrNull()
+            _myUserId.value = res?.data?.profile?.userId ?: 0L
+        }
     }
 
     suspend fun collect(): NetResult<Unit> {

@@ -28,4 +28,7 @@ object RoutePath {
     const val CLOUD_DISK = "/cloud_disk"
     const val MSG_CENTER = "/msg_center"
     const val MSG_DETAIL = "/msg_detail"
+    const val VIDEO = "/video"
+    const val DJ_RANK = "/dj_rank"
+    const val COMMENT_FLOOR = "/comment_floor"
 }

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Radio
@@ -55,6 +56,7 @@ import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
 
 @Composable
 fun DiscoverScreen(
+
     viewModel: DiscoverViewModel,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -75,7 +77,9 @@ fun DiscoverScreen(
         songs.getOrNull(index)?.let(onPlaySong)
     },
     onOpenArtist: (Long) -> Unit = {},
-    onOpenDjRadio: (Long) -> Unit = {}
+    onOpenDjRadio: (Long) -> Unit = {},
+    onOpenVideo: () -> Unit = {},
+    onOpenDjRank: () -> Unit = {},
 ) {
     val bannerList by viewModel.bannerList.collectAsState()
     val recommendPlaylist by viewModel.recommendPlaylist.collectAsState()
@@ -113,7 +117,9 @@ fun DiscoverScreen(
                 onOpenArtistList = onOpenArtistList,
                 onOpenNewSong = onOpenNewSong,
                 onOpenDj = onOpenDj,
-                onOpenMvList = onOpenMvList
+                onOpenMvList = onOpenMvList,
+                onOpenVideo = onOpenVideo,
+                onOpenDjRank = onOpenDjRank
             )
         }
 
@@ -363,7 +369,9 @@ private fun EntranceRow(
     onOpenArtistList: () -> Unit,
     onOpenNewSong: () -> Unit,
     onOpenDj: () -> Unit,
-    onOpenMvList: () -> Unit
+    onOpenMvList: () -> Unit,
+    onOpenVideo: () -> Unit,
+    onOpenDjRank: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -419,6 +427,16 @@ private fun EntranceRow(
                 icon = Icons.Filled.Slideshow,
                 label = "MV",
                 onClick = onOpenMvList
+            )
+            EntranceItem(
+                icon = Icons.Filled.PlayArrow,
+                label = "视频",
+                onClick = onOpenVideo
+            )
+            EntranceItem(
+                icon = Icons.Filled.QueueMusic,
+                label = "电台榜",
+                onClick = onOpenDjRank
             )
         }
     }
