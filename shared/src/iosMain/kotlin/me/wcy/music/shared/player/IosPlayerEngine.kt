@@ -12,12 +12,14 @@ import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.apiCall
-import platform.AVFoundation.AVAudioSession
-import platform.AVFoundation.AVAudioSessionCategoryPlayback
+import platform.AVFAudio.AVAudioSession
+import platform.AVFAudio.AVAudioSessionCategoryPlayback
+import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
-import platform.AVFoundation.AVPlayerItemStatus
-import platform.AVFoundation.AVPlayerTimeControlStatus
+import platform.AVFoundation.AVPlayerItemStatusFailed
+import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
+import platform.AVFoundation.AVPlayerTimeControlStatusPlaying
 import platform.AVFoundation.AVQueuePlayer
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
@@ -80,9 +82,9 @@ class IosPlayerEngine : PlayerEngine {
             player.currentTime().useContents {
                 _playProgress.value = if (timescale != 0) value * 1000 / timescale else 0
             }
-            _isPlaying.value = player.timeControlStatus == AVPlayerTimeControlStatus.Playing
+            _isPlaying.value = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
             _bufferingPercent.value = when (player.currentItem?.status) {
-                AVPlayerItemStatus.ReadyToPlay, AVPlayerItemStatus.Failed, null -> 0
+                AVPlayerItemStatusReadyToPlay, AVPlayerItemStatusFailed, null -> 0
                 else -> 100
             }
         }
@@ -97,7 +99,7 @@ class IosPlayerEngine : PlayerEngine {
 
     override fun playPause() {
         if (_playlist.value.isEmpty()) return
-        if (player.timeControlStatus == AVPlayerTimeControlStatus.Playing) {
+        if (player.timeControlStatus == AVPlayerTimeControlStatusPlaying) {
             player.pause()
         } else if (player.currentItem == null) {
             startCurrent()
@@ -212,7 +214,7 @@ class IosPlayerEngine : PlayerEngine {
             } else {
                 NSURL.URLWithString(path)
             } ?: return@launch
-            player.replaceCurrentItem(AVPlayerItem.itemWithURL(nsUrl))
+            player.replaceCurrentItemWithPlayerItem(AVPlayerItem(nsUrl))
             player.play()
         }
     }
@@ -231,7 +233,7 @@ class IosPlayerEngine : PlayerEngine {
 
     private fun stopAndClear() {
         player.pause()
-        player.replaceCurrentItem(null)
+        player.replaceCurrentItemWithPlayerItem(null)
         currentIndex = -1
         _playlist.value = emptyList()
         _currentSong.value = null

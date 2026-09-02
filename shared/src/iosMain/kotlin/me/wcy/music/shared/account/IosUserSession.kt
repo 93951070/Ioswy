@@ -39,9 +39,9 @@ class IosUserSession : UserSession {
             val profile = status.data.profile
             if (status.data.account.status == 0 && profile != null) {
                 _profile.value = profile
-                defs.setObjectForKey(
+                defs.setObject(
                     SharedJson.encodeToString(ProfileData.serializer(), profile),
-                    KEY_PROFILE
+                    forKey = KEY_PROFILE
                 )
                 NetResult(code = 200, data = profile)
             } else {
@@ -65,7 +65,7 @@ class IosUserSession : UserSession {
         if (cookie.isEmpty()) {
             defs.removeObjectForKey(KEY_COOKIE)
         } else {
-            defs.setObjectForKey(cookie, KEY_COOKIE)
+            defs.setObject(cookie, forKey = KEY_COOKIE)
         }
     }
 

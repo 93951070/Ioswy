@@ -20,9 +20,9 @@ class IosSearchHistoryStore : SearchHistoryStore {
     }.getOrNull() ?: emptyList()
 
     override fun saveHistory(keywords: List<String>) {
-        defs.setObjectForKey(
+        defs.setObject(
             SharedJson.encodeToString(ListSerializer(String.serializer()), keywords),
-            KEY
+            forKey = KEY
         )
     }
 

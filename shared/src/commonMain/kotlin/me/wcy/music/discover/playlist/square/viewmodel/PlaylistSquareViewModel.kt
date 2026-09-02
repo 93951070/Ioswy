@@ -22,7 +22,10 @@ class PlaylistSquareViewModel : ViewModel() {
         if (data.code != 200) return false
         _tagList.value =
             (listOf("全部") + data.sub.filter { it.hot }.sortedBy { it.name }.map { it.name })
-        _categories.value = data.categories.toSortedMap().mapNotNull { (index, name) ->
+        _categories.value = data.categories.entries
+            .sortedBy { it.key.toIntOrNull() ?: Int.MAX_VALUE }
+            .associate { it.toPair() }
+            .mapNotNull { (index, name) ->
             val category = index.toIntOrNull() ?: return@mapNotNull null
             val tags = data.sub.filter { it.category == category }.map { it.name }
             if (tags.isEmpty()) null else CategoryGroup(name, tags)

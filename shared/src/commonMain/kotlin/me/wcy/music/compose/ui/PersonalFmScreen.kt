@@ -43,7 +43,7 @@ import me.wcy.music.compose.theme.AppThemeColor
 private fun formatMs(milli: Long): String {
     val m = (milli / 60000).toInt()
     val s = (milli / 1000 % 60).toInt()
-    return "%02d:%02d".format(m, s)
+    return "${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
 }
 
 @Composable
