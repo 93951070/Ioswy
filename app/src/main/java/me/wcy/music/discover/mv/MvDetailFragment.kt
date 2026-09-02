@@ -1,7 +1,5 @@
 package me.wcy.music.discover.mv
 
-import android.content.Intent
-import android.net.Uri
 import android.view.View
 import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.viewModels
@@ -31,23 +29,11 @@ class MvDetailFragment : BaseMusicFragment() {
                     MvDetailScreen(
                         viewModel = viewModel,
                         mvid = id,
-                        onBack = { finish() },
-                        onPlayMv = { url ->
-                            playMv(url)
-                        }
+                        onBack = { finish() }
                     )
                 }
             }
             composeView = view
         }
-    }
-
-    private fun playMv(url: String) {
-        if (url.isBlank()) return
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(Uri.parse(url), "video/mp4")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        kotlin.runCatching { startActivity(intent) }
     }
 }

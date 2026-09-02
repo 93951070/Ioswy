@@ -31,17 +31,16 @@ class CommentViewModel(
     private var songId = 0L
     private var page = 0
 
-    /** 电台评论走 comment/dj，歌曲评论走 comment/music */
+    /** 电台评论走 comment/dj，MV 走 comment/mv，歌曲走 comment/music */
     private var fetchComment: suspend (Long, Int, Int) -> CommentData =
         { id, limit, offset -> DiscoverNet.getCommentMusic(id, limit, offset) }
 
-    fun init(id: Long, dj: Boolean = false) {
-        fetchComment =
-            if (dj) {
-                { i, l, o -> DiscoverNet.getCommentDj(i, l, o) }
-            } else {
-                { i, l, o -> DiscoverNet.getCommentMusic(i, l, o) }
-            }
+    fun init(id: Long, source: String = "music") {
+        fetchComment = when (source) {
+            "dj" -> { i: Long, l: Int, o: Int -> DiscoverNet.getCommentDj(i, l, o) }
+            "mv" -> { i: Long, l: Int, o: Int -> DiscoverNet.getCommentMv(i, l, o) }
+            else -> { i: Long, l: Int, o: Int -> DiscoverNet.getCommentMusic(i, l, o) }
+        }
         if (songId == id && _comments.value.isNotEmpty()) return
         songId = id
         page = 0

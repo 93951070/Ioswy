@@ -168,6 +168,22 @@ object DiscoverNet {
         )
     }
 
+    suspend fun getCommentMv(
+        id: Long,
+        limit: Int = 30,
+        offset: Int = 0,
+    ): CommentData {
+        return SharedJson.decodeBean(SharedNet.get(
+                "comment/mv",
+                params = listOf(
+                    "id" to id,
+                    "limit" to limit,
+                    "offset" to offset
+                )
+            )
+        )
+    }
+
     suspend fun likeComment(
         songId: Long,
         commentId: Long,

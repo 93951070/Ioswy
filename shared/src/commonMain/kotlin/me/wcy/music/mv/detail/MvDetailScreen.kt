@@ -15,13 +15,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,18 +36,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import me.wcy.music.compose.component.CoverImage
+import me.wcy.music.compose.ui.CommentPanel
 import me.wcy.music.compose.ui.TitleBar
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.mv.bean.MvItem
 import me.wcy.music.mv.detail.viewmodel.MvDetailViewModel
 import me.wcy.music.shared.util.formatPlayCount
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MvDetailScreen(
     viewModel: MvDetailViewModel,
     mvid: Long,
     onBack: () -> Unit,
-    onPlayMv: (String) -> Unit
+    onMessage: (String) -> Unit = {}
 ) {
     LaunchedEffect(mvid) {
         viewModel.init(mvid)
@@ -52,36 +61,54 @@ fun MvDetailScreen(
     val mvUrl by viewModel.mvUrl.collectAsState()
     val isSub by viewModel.isSub.collectAsState()
     val scope = rememberCoroutineScope()
+    var showCommentSheet by remember { mutableStateOf(false) }
+    val commentViewModel = remember { CommentViewModel() }
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             TitleBar(title = mv?.name ?: "MV", onBack = onBack)
         }
         item {
-            MvPlayerCover(
-                cover = mv?.cover ?: "",
-                canPlay = mvUrl.isNotBlank(),
-                onPlay = { onPlayMv(mvUrl) }
-            )
+            // 有地址直接内嵌自动播放，无地址显示封面
+            if (mvUrl.isNotBlank()) {
+                MvPlayerSurface(
+                    url = mvUrl,
+                    modifier = Modifier.fillMaxWidth().height(210.dp).background(Color.Black)
+                )
+            } else {
+                MvPlayerCover(cover = mv?.cover ?: "")
+            }
         }
         mv?.let { data ->
             item {
                 MvInfo(
                     mv = data,
                     isSub = isSub,
-                    onCollect = { scope.launch { viewModel.collect() } }
+                    onCollect = { scope.launch { viewModel.collect() } },
+                    onOpenComment = { showCommentSheet = true }
                 )
             }
+        }
+    }
+
+    if (showCommentSheet) {
+        LaunchedEffect(mvid) {
+            // MV 评论走 comment/mv
+            commentViewModel.init(mvid, source = "mv")
+            commentViewModel.loadMore()
+        }
+        ModalBottomSheet(
+            onDismissRequest = { showCommentSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White
+        ) {
+            CommentPanel(commentViewModel, onMessage)
         }
     }
 }
 
 @Composable
-private fun MvPlayerCover(
-    cover: String,
-    canPlay: Boolean,
-    onPlay: () -> Unit
-) {
+private fun MvPlayerCover(cover: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -94,22 +121,6 @@ private fun MvPlayerCover(
             cornerRadius = 0.dp,
             modifier = Modifier.fillMaxSize()
         )
-        if (canPlay) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                    .clickable(onClick = onPlay),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "播放",
-                    tint = Color.White,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
     }
 }
 
@@ -117,7 +128,8 @@ private fun MvPlayerCover(
 private fun MvInfo(
     mv: MvItem,
     isSub: Boolean,
-    onCollect: () -> Unit
+    onCollect: () -> Unit,
+    onOpenComment: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -156,6 +168,19 @@ private fun MvInfo(
             ) {
                 Text(
                     text = if (isSub) "已收藏" else "收藏",
+                    color = Color.White,
+                    fontSize = 11.sp
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .background(AppThemeColor.ThemeColor, RoundedCornerShape(12.dp))
+                    .clickable(onClick = onOpenComment)
+                    .padding(horizontal = 12.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = "评论",
                     color = Color.White,
                     fontSize = 11.sp
                 )

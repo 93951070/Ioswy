@@ -173,7 +173,7 @@ fun DjDetailScreen(
     if (showCommentSheet) {
         LaunchedEffect(rid) {
             // 电台评论走 comment/dj，与歌曲评论区分
-            commentViewModel.init(rid, dj = true)
+            commentViewModel.init(rid, source = "dj")
             commentViewModel.loadMore()
         }
         ModalBottomSheet(

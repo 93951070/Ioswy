@@ -548,8 +548,7 @@ fun IosRoot() {
                         MvDetailScreen(
                             viewModel = vm,
                             mvid = page.id,
-                            onBack = { pop() },
-                            onPlayMv = { url -> IosMvPlayer.present(url) }
+                            onBack = { pop() }
                         )
                     }
                     IosPage.DjRecommend -> {
@@ -566,8 +565,7 @@ fun IosRoot() {
                             viewModel = vm,
                             rid = page.rid,
                             onBack = { pop() },
-                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) },
-                            onMessage = onMessage
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) }
                         )
                     }
                     IosPage.NewSong -> {

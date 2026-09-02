@@ -40,6 +40,8 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.coil3.network.okhttp)
+            implementation(libs.media3.exoplayer)
+            implementation(libs.media3.ui)
         }
         iosMain.dependencies {
             implementation(libs.coil3.network.ktor3)
