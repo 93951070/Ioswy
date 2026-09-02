@@ -42,7 +42,7 @@ jobs:
       - name: Package unsigned ipa
         run: |
           mkdir -p build/Payload
-          cp -R build/Debug-iphoneos/iosApp.app build/Payload/
+          cp -R iosApp/build/Debug-iphoneos/iosApp.app build/Payload/
           cd build
           zip -qry ponymusic-unsigned.ipa Payload
           ls -lh ponymusic-unsigned.ipa
