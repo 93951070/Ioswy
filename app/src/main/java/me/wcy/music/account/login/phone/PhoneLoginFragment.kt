@@ -41,6 +41,7 @@ class PhoneLoginFragment : BaseMusicFragment() {
                     PhoneLoginScreen(
                         viewModel = viewModel,
                         onLoginSuccess = { setResultAndFinish() },
+                        onBack = { activity?.finish() },
                         onSwitchQrcode = {
                             activity?.apply {
                                 setResult(LoginRouteFragment.RESULT_SWITCH_QRCODE)

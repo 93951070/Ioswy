@@ -32,7 +32,8 @@ fun QrcodeLoginScreen(
     qrCodeImage: ImageBitmap?,
     onLoginSuccess: () -> Unit = {},
     onSwitchPhone: () -> Unit,
-    onMessage: (String) -> Unit
+    onMessage: (String) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     val status by viewModel.loginStatus.collectAsState()
     var handledSuccess by remember { mutableStateOf(false) }
@@ -59,12 +60,16 @@ fun QrcodeLoginScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        modifier = Modifier.fillMaxSize()
     ) {
+        TitleBar(title = "扫码登录", onBack = onBack)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         Text(text = "扫码登录", color = AppThemeColor.TextH1, fontSize = 22.sp)
         qrCodeImage?.let { bitmap ->
             Image(
@@ -107,6 +112,7 @@ fun QrcodeLoginScreen(
                 .padding(top = 24.dp)
                 .clickable(onClick = onSwitchPhone)
         )
+        }
     }
 }
 

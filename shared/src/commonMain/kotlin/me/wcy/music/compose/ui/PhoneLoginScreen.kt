@@ -32,7 +32,8 @@ fun PhoneLoginScreen(
     viewModel: PhoneLoginViewModel,
     onLoginSuccess: () -> Unit,
     onSwitchQrcode: () -> Unit,
-    onMessage: (String) -> Unit
+    onMessage: (String) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     var phone by remember { mutableStateOf("") }
@@ -40,11 +41,15 @@ fun PhoneLoginScreen(
     val countdown by viewModel.sendPhoneCodeCountdown.collectAsState()
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier.fillMaxSize()
     ) {
+        TitleBar(title = "手机号登录", onBack = onBack)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
         Text(
             text = "手机号登录",
             color = AppThemeColor.TextH1,
@@ -122,5 +127,6 @@ fun PhoneLoginScreen(
                 .padding(top = 16.dp)
                 .clickable(onClick = onSwitchQrcode)
         )
+        }
     }
 }

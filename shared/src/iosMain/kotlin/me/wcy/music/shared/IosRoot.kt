@@ -10,9 +10,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ComposeUIViewController
@@ -34,6 +49,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.account.login.phone.PhoneLoginViewModel
 import me.wcy.music.account.login.qrcode.QrcodeLoginViewModel
 import me.wcy.music.common.bean.AlbumData
@@ -56,6 +72,7 @@ import me.wcy.music.compose.ui.QrcodeLoginScreen
 import me.wcy.music.compose.ui.RankingScreen
 import me.wcy.music.compose.ui.RecommendSongScreen
 import me.wcy.music.compose.ui.SearchScreen
+import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.discover.fm.viewmodel.PersonalFmViewModel
 import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
@@ -199,11 +216,35 @@ fun IosRoot() {
     }
 
     MusicTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AppThemeColor.Background)
+        val drawerState = rememberDrawerState(DrawerValue.Closed)
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet {
+                    IosDrawerContent(
+                        session = session,
+                        onClose = { scope.launch { drawerState.close() } },
+                        onOpenLogin = {
+                            scope.launch { drawerState.close() }
+                            push(IosPage.Login)
+                        },
+                        onLogout = {
+                            scope.launch {
+                                session.logout()
+                                toast("已退出登录")
+                                drawerState.close()
+                            }
+                        },
+                        onMessage = ::toast
+                    )
+                }
+            }
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppThemeColor.Background)
+            ) {
             val page = backStack.lastOrNull()
             if (page == null) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -211,7 +252,7 @@ fun IosRoot() {
                         when (currentTab) {
                             IosTab.Discover -> DiscoverScreen(
                                 viewModel = discoverViewModel,
-                                onOpenDrawer = { /* TODO iOS 无抽屉，先留空 */ },
+                                onOpenDrawer = { scope.launch { drawerState.open() } },
                                 onOpenSearch = { push(IosPage.Search) },
                                 onOpenPlaylistDetail = { id ->
                                     push(IosPage.PlaylistDetail(id, realtimeData = false, isLike = false))
@@ -230,7 +271,7 @@ fun IosRoot() {
                             else -> MineScreen(
                                 viewModel = mineViewModel,
                                 profileFlow = session.profile,
-                                onOpenDrawer = { /* TODO iOS 无抽屉，先留空 */ },
+                                onOpenDrawer = { scope.launch { drawerState.open() } },
                                 onOpenSearch = { push(IosPage.Search) },
                                 onOpenLogin = { push(IosPage.Login) },
                                 onOpenLocalMusic = { push(IosPage.LocalMusic) },
@@ -310,12 +351,14 @@ fun IosRoot() {
                     IosPage.Login -> LoginPage(
                         session = session,
                         onLoginSuccess = { pop() },
-                        onMessage = { toast(it) }
+                        onMessage = { toast(it) },
+                        onBack = { pop() }
                     )
                 }
             }
 
             ToastOverlay(message)
+        }
         }
     }
 }
@@ -543,7 +586,8 @@ private fun PlayingPage(
 private fun LoginPage(
     session: IosUserSession,
     onLoginSuccess: () -> Unit,
-    onMessage: (String) -> Unit
+    onMessage: (String) -> Unit,
+    onBack: () -> Unit
 ) {
     var showQrcode by remember { mutableStateOf(false) }
     if (showQrcode) {
@@ -555,7 +599,8 @@ private fun LoginPage(
             qrCodeImage = null,
             onLoginSuccess = onLoginSuccess,
             onSwitchPhone = { showQrcode = false },
-            onMessage = onMessage
+            onMessage = onMessage,
+            onBack = onBack
         )
     } else {
         val viewModel = remember { PhoneLoginViewModel(session) }
@@ -563,7 +608,8 @@ private fun LoginPage(
             viewModel = viewModel,
             onLoginSuccess = onLoginSuccess,
             onSwitchQrcode = { showQrcode = true },
-            onMessage = onMessage
+            onMessage = onMessage,
+            onBack = onBack
         )
     }
 }
@@ -639,4 +685,108 @@ private fun scanLocalAudio(): List<LocalSongData> {
                 path = path
             )
         } ?: emptyList()
+}
+
+@Composable
+private fun IosDrawerContent(
+    session: IosUserSession,
+    onClose: () -> Unit,
+    onOpenLogin: () -> Unit,
+    onLogout: () -> Unit,
+    onMessage: (String) -> Unit
+) {
+    val profile by session.profile.collectAsState()
+
+    Column(
+        modifier = Modifier
+            .width(280.dp)
+            .fillMaxHeight()
+            .background(AppThemeColor.Card)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(AppThemeColor.ThemeColor)
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (profile != null) {
+                CoverImage(
+                    url = profile.avatarUrl,
+                    cornerRadius = 28.dp,
+                    modifier = Modifier.size(56.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.AccountCircle,
+                    contentDescription = "未登录",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clickable(onClick = onOpenLogin)
+                )
+            }
+            Column(modifier = Modifier.padding(start = 14.dp)) {
+                Text(
+                    text = profile?.nickname ?: "点击登录",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    modifier = Modifier.clickable(enabled = profile == null, onClick = onOpenLogin)
+                )
+                Text(
+                    text = profile?.nickname?.let { "网易云音乐" } ?: "登录后同步收藏歌单",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        IosDrawerMenuRow(Icons.Filled.Email, "我的消息") {
+            onClose(); onMessage("功能开发中")
+        }
+        IosDrawerMenuRow(Icons.Filled.ShoppingCart, "云贝商城") {
+            onClose(); onMessage("功能开发中")
+        }
+        IosDrawerMenuRow(Icons.Filled.Info, "我的等级") {
+            onClose(); onMessage("功能开发中")
+        }
+        IosDrawerMenuRow(Icons.Filled.Star, "会员中心") {
+            onClose(); onMessage("功能开发中")
+        }
+        if (profile != null) {
+            IosDrawerMenuRow(Icons.Filled.ExitToApp, "退出登录") {
+                onClose(); onLogout()
+            }
+        }
+    }
+}
+
+@Composable
+private fun IosDrawerMenuRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = AppThemeColor.TextH1,
+            modifier = Modifier.size(22.dp)
+        )
+        Text(
+            text = label,
+            color = AppThemeColor.TextH1,
+            fontSize = 15.sp,
+            modifier = Modifier.padding(start = 16.dp)
+        )
+    }
 }

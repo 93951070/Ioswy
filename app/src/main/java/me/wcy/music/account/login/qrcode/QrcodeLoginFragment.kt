@@ -50,6 +50,7 @@ class QrcodeLoginFragment : BaseMusicFragment() {
                         viewModel = viewModel,
                         qrCodeImage = qrCodeImage,
                         onLoginSuccess = { setResultAndFinish() },
+                        onBack = { activity?.finish() },
                         onSwitchPhone = {
                             activity?.apply {
                                 setResult(LoginRouteFragment.RESULT_SWITCH_PHONE)
