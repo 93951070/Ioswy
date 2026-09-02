@@ -1,5 +1,6 @@
 package me.wcy.music.compose.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,7 +42,9 @@ import kotlinx.coroutines.launch
 import me.wcy.music.R
 import me.wcy.music.account.service.UserService
 import me.wcy.music.compose.component.PlayBar
+import androidx.compose.ui.platform.LocalContext
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.storage.preference.ConfigPreferences
 import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
 import me.wcy.music.main.NaviTab
 import me.wcy.music.mine.home.viewmodel.MineViewModel
@@ -77,6 +80,7 @@ fun MainScreen(
     onOpenSearch: () -> Unit,
     onOpenLogin: () -> Unit
 ) {
+    val context = LocalContext.current
     var currentTab by remember { mutableStateOf<NaviTab>(NaviTab.Discover) }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -111,6 +115,11 @@ fun MainScreen(
                     onOpenMsgCenter = onOpenMsgCenter,
                     onOpenPlaylistDetail = { playlist, realtime, like ->
                         onOpenPlaylistDetail(playlist.id)
+                    },
+                    signedToday = ConfigPreferences.signDate == todayString(),
+                    onSignin = {
+                        ConfigPreferences.signDate = todayString()
+                        toast(context, "签到成功，今日已签")
                     }
                 )
             }
@@ -233,4 +242,12 @@ private fun DrawerMenuRow(
             modifier = Modifier.padding(start = 16.dp)
         )
     }
+}
+
+internal fun todayString(): String =
+    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        .format(java.util.Date())
+
+internal fun toast(context: Context?, msg: String) {
+    android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
 }

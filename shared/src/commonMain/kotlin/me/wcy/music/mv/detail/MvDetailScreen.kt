@@ -159,30 +159,34 @@ private fun MvInfo(
                 fontSize = 12.sp,
                 modifier = Modifier.padding(start = 10.dp)
             )
+        }
+        Row(
+            modifier = Modifier.padding(top = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Box(
                 modifier = Modifier
-                    .padding(start = 12.dp)
                     .background(AppThemeColor.ThemeColor, RoundedCornerShape(12.dp))
                     .clickable(onClick = onCollect)
-                    .padding(horizontal = 12.dp, vertical = 3.dp)
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = if (isSub) "已收藏" else "收藏",
                     color = Color.White,
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
             }
             Box(
                 modifier = Modifier
-                    .padding(start = 8.dp)
+                    .padding(start = 10.dp)
                     .background(AppThemeColor.ThemeColor, RoundedCornerShape(12.dp))
                     .clickable(onClick = onOpenComment)
-                    .padding(horizontal = 12.dp, vertical = 3.dp)
+                    .padding(horizontal = 14.dp, vertical = 5.dp)
             ) {
                 Text(
                     text = "评论",
                     color = Color.White,
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
             }
         }

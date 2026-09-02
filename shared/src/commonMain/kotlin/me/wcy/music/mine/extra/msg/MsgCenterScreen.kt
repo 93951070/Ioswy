@@ -1,5 +1,6 @@
 package me.wcy.music.mine.extra.msg
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +33,8 @@ import me.wcy.music.shared.util.formatMsgTime
 @Composable
 fun MsgCenterScreen(
     viewModel: MsgCenterViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenMsgDetail: (Long, String) -> Unit = { _, _ -> }
 ) {
     val state by viewModel.state.collectAsState()
     var tab by remember { mutableStateOf(0) }
@@ -63,7 +65,17 @@ fun MsgCenterScreen(
             }
         }
         itemsIndexed(msgs) { _, msg ->
-            MsgRow(msg = msg)
+            MsgRow(
+                msg = msg,
+                onClick = {
+                    if (tab == 0) {
+                        val peer = msg.peer()
+                        if (peer != null && peer.userId > 0) {
+                            onOpenMsgDetail(peer.userId, peer.nickname)
+                        }
+                    }
+                }
+            )
         }
         if (tab in state.loadedTabs && msgs.isEmpty()) {
             item {
@@ -85,11 +97,12 @@ fun MsgCenterScreen(
 }
 
 @Composable
-private fun MsgRow(msg: MsgItem) {
-    val user = msg.user
+private fun MsgRow(msg: MsgItem, onClick: () -> Unit = {}) {
+    val user = msg.peer()
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top
     ) {

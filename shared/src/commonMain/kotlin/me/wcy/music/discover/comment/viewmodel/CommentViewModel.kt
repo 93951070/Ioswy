@@ -35,11 +35,19 @@ class CommentViewModel(
     private var fetchComment: suspend (Long, Int, Int) -> CommentData =
         { id, limit, offset -> DiscoverNet.getCommentMusic(id, limit, offset) }
 
+    /** 评论资源类型：0 歌曲 / 1 MV / 2 歌单 / 4 电台 / 5 专辑（comment 接口 type 参数） */
+    private var resourceType: Int = 0
+
     fun init(id: Long, source: String = "music") {
         fetchComment = when (source) {
-            "dj" -> { i: Long, l: Int, o: Int -> DiscoverNet.getCommentDj(i, l, o) }
-            "mv" -> { i: Long, l: Int, o: Int -> DiscoverNet.getCommentMv(i, l, o) }
-            else -> { i: Long, l: Int, o: Int -> DiscoverNet.getCommentMusic(i, l, o) }
+            "dj" -> { i, l, o -> DiscoverNet.getCommentDj(i, l, o) }
+            "mv" -> { i, l, o -> DiscoverNet.getCommentMv(i, l, o) }
+            else -> { i, l, o -> DiscoverNet.getCommentMusic(i, l, o) }
+        }
+        resourceType = when (source) {
+            "dj" -> 4
+            "mv" -> 1
+            else -> 0
         }
         if (songId == id && _comments.value.isNotEmpty()) return
         songId = id
@@ -102,7 +110,7 @@ class CommentViewModel(
         if (songId <= 0 || content.isBlank()) return
         viewModelScope.launch {
             val res = kotlin.runCatching {
-                DiscoverNet.addComment(songId, content = content.trim())
+                DiscoverNet.addComment(songId, type = resourceType, content = content.trim())
             }
             val data = res.getOrNull()
             if (data?.code == 200) {

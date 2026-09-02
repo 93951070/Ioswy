@@ -5,10 +5,12 @@ import me.wcy.music.common.bean.SharedJson
 import me.wcy.music.common.bean.decodeBean
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.common.bean.SongUrlData
+import me.wcy.music.discover.artist.bean.ArtistListData
 import me.wcy.music.discover.banner.BannerListData
 import me.wcy.music.discover.comment.bean.CommentData
 import me.wcy.music.discover.comment.bean.CommentOpData
 import me.wcy.music.discover.fm.bean.PersonalFmData
+import me.wcy.music.dj.bean.DjListData
 import me.wcy.music.discover.playlist.detail.bean.PlaylistDetailData
 import me.wcy.music.discover.playlist.detail.bean.SongListData
 import me.wcy.music.discover.playlist.square.bean.CatlistData
@@ -215,6 +217,37 @@ object DiscoverNet {
                     "type" to type,
                     "t" to t,
                     "content" to content
+                )
+            )
+        )
+    }
+
+    suspend fun getHotArtistList(limit: Int = 10): ArtistListData {
+        return SharedJson.decodeBean(SharedNet.get(
+                "artist/list",
+                params = listOf(
+                    "type" to -1,
+                    "limit" to limit
+                )
+            )
+        )
+    }
+
+    suspend fun getHighQualityPlaylistList(limit: Int = 10): PlaylistListData {
+        return SharedJson.decodeBean(SharedNet.get(
+                "top/playlist/highquality",
+                params = listOf(
+                    "limit" to limit
+                )
+            )
+        )
+    }
+
+    suspend fun getDjRecommendList(limit: Int = 6): DjListData {
+        return SharedJson.decodeBean(SharedNet.get(
+                "dj/recommend",
+                params = listOf(
+                    "limit" to limit
                 )
             )
         )

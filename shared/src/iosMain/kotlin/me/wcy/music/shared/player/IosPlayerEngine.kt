@@ -93,6 +93,11 @@ class IosPlayerEngine : PlayerEngine {
         ) { _ -> onItemEnded() }
     }
 
+    /** 直接暂停（MV 视频播放等场景需要停掉音乐，与 playPause 的 toggle 语义不同） */
+    fun pause() {
+        player.pause()
+    }
+
     override fun playPause() {
         if (_playlist.value.isEmpty()) return
         if (player.timeControlStatus == AVPlayerTimeControlStatusPlaying) {

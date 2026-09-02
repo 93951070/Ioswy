@@ -82,12 +82,15 @@ import me.wcy.music.compose.ui.MineScreen
 import me.wcy.music.compose.ui.PersonalFmScreen
 import me.wcy.music.compose.ui.PhoneLoginScreen
 import me.wcy.music.compose.ui.PlayingScreen
+import me.wcy.music.compose.ui.QualitySheet
+import me.wcy.music.compose.ui.qualityLabel
 import me.wcy.music.compose.ui.PlaylistDetailScreen
 import me.wcy.music.compose.ui.PlaylistSquareScreen
 import me.wcy.music.compose.ui.QrcodeLoginScreen
 import me.wcy.music.compose.ui.RankingScreen
 import me.wcy.music.compose.ui.RecommendSongScreen
 import me.wcy.music.compose.ui.SearchScreen
+import me.wcy.music.search.SearchType
 import me.wcy.music.compose.ui.SettingChoice
 import me.wcy.music.compose.ui.SettingItem
 import me.wcy.music.compose.ui.SettingsScreen
@@ -190,6 +193,7 @@ private sealed interface IosPage {
     data object SubList : IosPage
     data object CloudDisk : IosPage
     data object MsgCenter : IosPage
+    data class MsgDetail(val uid: Long, val nickname: String) : IosPage
 }
 
 @Composable
@@ -218,6 +222,11 @@ fun IosRoot() {
     val mineViewModel = remember { MineViewModel(profileFlow = session.profile) }
 
     var likeSongIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+
+    // 签到状态：按日期本地持久化（上游 daily_signin 返回「功能暂不支持」）
+    var todaySignState by remember {
+        mutableStateOf(NSUserDefaults.standardUserDefaults.stringForKey(KEY_SIGN_DATE) ?: "")
+    }
 
     fun toast(msg: String) {
         message = msg
@@ -395,7 +404,12 @@ fun IosRoot() {
                                 onPlayPlaylist = { playlist ->
                                     fetchPlaylistSongs(playlist.id) { engine.playSongList(it, 0) }
                                 },
-                                onPlayPlaylistSong = onPlayPlaylistSong
+                                onPlayPlaylistSong = onPlayPlaylistSong,
+                                onPlayDailySong = { songs, index ->
+                                    engine.playSongList(songs, index)
+                                },
+                                onOpenArtist = { id -> push(IosPage.ArtistDetail(id)) },
+                                onOpenDjRadio = { id -> push(IosPage.DjDetail(id)) }
                             )
                             else -> MineScreen(
                                 viewModel = mineViewModel,
@@ -410,6 +424,12 @@ fun IosRoot() {
                                 onOpenMsgCenter = { push(IosPage.MsgCenter) },
                                 onOpenPlaylistDetail = { playlist, realtimeData, isLike ->
                                     push(IosPage.PlaylistDetail(playlist.id, realtimeData, isLike))
+                                },
+                                signedToday = todaySignState == todayString(),
+                                onSignin = {
+                                    NSUserDefaults.standardUserDefaults.setObject(todayString(), forKey = KEY_SIGN_DATE)
+                                    todaySignState = todayString()
+                                    toast("签到成功，今日已签")
                                 }
                             )
                         }
@@ -468,6 +488,16 @@ fun IosRoot() {
                         onBack = { pop() },
                         onOpenPlaylistDetail = { id ->
                             push(IosPage.PlaylistDetail(id, realtimeData = false, isLike = false))
+                        },
+                        onClickItem = { type, id ->
+                            when (type) {
+                                SearchType.ARTIST -> push(IosPage.ArtistDetail(id))
+                                SearchType.ALBUM -> push(IosPage.AlbumDetail(id))
+                                SearchType.PLAYLIST -> push(IosPage.PlaylistDetail(id, realtimeData = false, isLike = false))
+                                SearchType.MV -> push(IosPage.MvDetail(id))
+                                SearchType.RADIO -> push(IosPage.DjDetail(id))
+                                else -> message = "该类型暂不支持跳转"
+                            }
                         }
                     )
                     IosPage.LocalMusic -> LocalMusicTab(
@@ -545,6 +575,8 @@ fun IosRoot() {
                     }
                     is IosPage.MvDetail -> {
                         val vm = remember { MvDetailViewModel() }
+                        // 进 MV 页先停音乐，避免视频声音与音乐叠加
+                        LaunchedEffect(Unit) { engine.pause() }
                         MvDetailScreen(
                             viewModel = vm,
                             mvid = page.id,
@@ -608,6 +640,18 @@ fun IosRoot() {
                         val vm = remember { MsgCenterViewModel() }
                         MsgCenterScreen(
                             viewModel = vm,
+                            onBack = { pop() },
+                            onOpenMsgDetail = { uid, nickname ->
+                                push(IosPage.MsgDetail(uid, nickname))
+                            }
+                        )
+                    }
+
+                    IosPage.MsgDetail -> {
+                        val page = current as IosPage.MsgDetail
+                        MsgDetailScreen(
+                            uid = page.uid,
+                            nickname = page.nickname,
                             onBack = { pop() }
                         )
                     }
@@ -803,7 +847,8 @@ private fun PlaylistDetailPage(
 private fun SearchPage(
     engine: IosPlayerEngine,
     onBack: () -> Unit,
-    onOpenPlaylistDetail: (Long) -> Unit
+    onOpenPlaylistDetail: (Long) -> Unit,
+    onClickItem: (SearchType, Long) -> Unit
 ) {
     val viewModel = remember { SearchViewModel(IosSearchHistoryStore()) }
     SearchScreen(
@@ -811,7 +856,8 @@ private fun SearchPage(
         onBack = onBack,
         onOpenPlaylistDetail = onOpenPlaylistDetail,
         onPlayAll = { songs -> engine.playSongList(songs, 0) },
-        onPlaySong = { song -> engine.playSongList(listOf(song), 0) }
+        onPlaySong = { song -> engine.playSongList(listOf(song), 0) },
+        onClickItem = onClickItem
     )
 }
 
@@ -872,6 +918,7 @@ private fun PlayingPage(
     var lrcContent by remember { mutableStateOf("") }
     var lrcLabel by remember { mutableStateOf("歌词加载中…") }
     var menuSong by remember { mutableStateOf<SongData?>(null) }
+    var showQualitySheet by remember { mutableStateOf(false) }
     var playQuality by remember {
         mutableStateOf(
             NSUserDefaults.standardUserDefaults.stringForKey(IosPlayerEngine.PLAY_QUALITY_KEY)
@@ -904,11 +951,7 @@ private fun PlayingPage(
         onDownload = { onMessage("敬请期待") },
         onMessage = onMessage,
         soundQuality = playQuality,
-        onSelectQuality = { level ->
-            NSUserDefaults.standardUserDefaults.setObject(level, forKey = IosPlayerEngine.PLAY_QUALITY_KEY)
-            playQuality = level
-            engine.replayCurrent()
-        },
+        onSelectQuality = {},
         lrcContent = lrcContent,
         onUpdateLrc = {},
         lrcLabel = lrcLabel
@@ -927,7 +970,23 @@ private fun PlayingPage(
                 engine.playNext(song)
                 menuSong = null
             }
+            IosMenuRow(Icons.Filled.Tune, "音质：${qualityLabel(playQuality)}") {
+                menuSong = null
+                showQualitySheet = true
+            }
         }
+    }
+
+    if (showQualitySheet) {
+        QualitySheet(
+            currentQuality = playQuality,
+            onSelectQuality = { level ->
+                NSUserDefaults.standardUserDefaults.setObject(level, forKey = IosPlayerEngine.PLAY_QUALITY_KEY)
+                playQuality = level
+                engine.replayCurrent()
+            },
+            onDismiss = { showQualitySheet = false }
+        )
     }
 }
 
@@ -1177,3 +1236,8 @@ private fun IosMenuRow(
         )
     }
 }
+
+private const val KEY_SIGN_DATE = "ios_sign_date"
+
+private fun todayString(): String =
+    kotlinx.datetime.Clock.System.now().toString().take(10)

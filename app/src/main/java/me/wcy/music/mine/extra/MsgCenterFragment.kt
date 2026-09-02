@@ -8,6 +8,7 @@ import me.wcy.music.common.BaseMusicFragment
 import me.wcy.music.compose.theme.MusicTheme
 import me.wcy.music.consts.RoutePath
 import me.wcy.music.mine.extra.msg.MsgCenterScreen
+import me.wcy.router.CRouter
 import me.wcy.music.mine.extra.msg.MsgCenterViewModel
 import me.wcy.router.annotation.Route
 
@@ -23,7 +24,14 @@ class MsgCenterFragment : BaseMusicFragment() {
                 MusicTheme {
                     MsgCenterScreen(
                         viewModel = viewModel,
-                        onBack = { finish() }
+                        onBack = { finish() },
+                        onOpenMsgDetail = { uid, nickname ->
+                            CRouter.with(requireActivity())
+                                .url(RoutePath.MSG_DETAIL)
+                                .extra("uid", uid)
+                                .extra("nickname", nickname)
+                                .start()
+                        }
                     )
                 }
             }

@@ -57,7 +57,7 @@ object ArtistNet {
         offset: Int = 0
     ): ArtistListData {
         return SharedJson.decodeBean(SharedNet.get(
-                "artist_list",
+                "artist/list",
                 params = listOf(
                     "type" to type,
                     "area" to area,

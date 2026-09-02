@@ -20,6 +20,8 @@ object ConfigPreferences :
         "standard"
     )
 
+    var signDate by IPreferencesFile.StringProperty("key_sign_date", "")
+
     var downloadSoundQuality by IPreferencesFile.StringProperty(
         StringUtils.getString(R.string.setting_key_download_sound_quality),
         "standard"

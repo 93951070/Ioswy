@@ -11,7 +11,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.common.bean.PlaylistData
+import me.wcy.music.common.bean.SongData
+import me.wcy.music.discover.artist.bean.HotArtistData
 import me.wcy.music.discover.banner.BannerData
+import me.wcy.music.dj.bean.DjRadioData
 import me.wcy.music.shared.net.DiscoverNet
 
 interface DiscoverCacheStore {
@@ -37,8 +40,24 @@ class DiscoverViewModel(
     private val _rankingList = MutableStateFlow<List<PlaylistData>>(emptyList())
     val rankingList = _rankingList.asStateFlow()
 
+    private val _dailySongs = MutableStateFlow<List<SongData>>(emptyList())
+    val dailySongs = _dailySongs.asStateFlow()
+
+    private val _hotArtistList = MutableStateFlow<List<HotArtistData>>(emptyList())
+    val hotArtistList = _hotArtistList.asStateFlow()
+
+    private val _highQualityPlaylists = MutableStateFlow<List<PlaylistData>>(emptyList())
+    val highQualityPlaylists = _highQualityPlaylists.asStateFlow()
+
+    private val _djRadioList = MutableStateFlow<List<DjRadioData>>(emptyList())
+    val djRadioList = _djRadioList.asStateFlow()
+
     init {
         loadCache()
+        loadDailySongs()
+        loadHotArtists()
+        loadHighQualityPlaylists()
+        loadDjRadios()
         viewModelScope.launch {
             profileFlow.collectLatest { profile ->
                 if (profile != null && hasApiDomain()) {
@@ -54,6 +73,10 @@ class DiscoverViewModel(
     fun refresh() {
         loadBanner()
         loadRankingList()
+        loadDailySongs()
+        loadHotArtists()
+        loadHighQualityPlaylists()
+        loadDjRadios()
         if (profileFlow.value != null && hasApiDomain()) {
             loadRecommendPlaylist()
         }
@@ -119,6 +142,48 @@ class DiscoverViewModel(
                 }
                 _rankingList.value = rankingList
                 cache?.putRankingList(rankingList)
+            }
+        }
+    }
+
+    private fun loadDailySongs() {
+        viewModelScope.launch {
+            kotlin.runCatching {
+                DiscoverNet.getRecommendSongs()
+            }.onSuccess { result ->
+                if (result.isSuccessWithData()) {
+                    _dailySongs.value = result.data?.dailySongs.orEmpty().take(10)
+                }
+            }
+        }
+    }
+
+    private fun loadHotArtists() {
+        viewModelScope.launch {
+            kotlin.runCatching {
+                DiscoverNet.getHotArtistList(limit = 10)
+            }.onSuccess {
+                _hotArtistList.value = it.artists
+            }
+        }
+    }
+
+    private fun loadHighQualityPlaylists() {
+        viewModelScope.launch {
+            kotlin.runCatching {
+                DiscoverNet.getHighQualityPlaylistList(limit = 10)
+            }.onSuccess {
+                _highQualityPlaylists.value = it.playlists
+            }
+        }
+    }
+
+    private fun loadDjRadios() {
+        viewModelScope.launch {
+            kotlin.runCatching {
+                DiscoverNet.getDjRecommendList(limit = 6)
+            }.onSuccess {
+                _djRadioList.value = it.djRadios
             }
         }
     }

@@ -27,4 +27,5 @@ object RoutePath {
     const val SUB_LIST = "/sub_list"
     const val CLOUD_DISK = "/cloud_disk"
     const val MSG_CENTER = "/msg_center"
+    const val MSG_DETAIL = "/msg_detail"
 }

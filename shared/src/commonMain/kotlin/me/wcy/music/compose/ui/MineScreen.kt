@@ -57,6 +57,7 @@ import me.wcy.music.mine.home.viewmodel.MineViewModel
 
 @Composable
 fun MineScreen(
+
     viewModel: MineViewModel,
     profileFlow: StateFlow<ProfileData?>,
     onOpenDrawer: () -> Unit,
@@ -67,14 +68,16 @@ fun MineScreen(
     onOpenSubList: () -> Unit,
     onOpenCloudDisk: () -> Unit,
     onOpenMsgCenter: () -> Unit,
-    onOpenPlaylistDetail: (PlaylistData, Boolean, Boolean) -> Unit
+    onOpenPlaylistDetail: (PlaylistData, Boolean, Boolean) -> Unit,
+    signedToday: Boolean,
+    onSignin: () -> Unit,
 ) {
     val profile by profileFlow.collectAsState()
     val likePlaylist by viewModel.likePlaylist.collectAsState()
     val myPlaylists by viewModel.myPlaylists.collectAsState()
     val collectPlaylists by viewModel.collectPlaylists.collectAsState()
     val scope = rememberCoroutineScope()
-    var signedIn by remember { mutableStateOf(false) }
+    val signedIn = signedToday
 
     LazyColumn(
         modifier = Modifier
@@ -103,12 +106,7 @@ fun MineScreen(
             MenuCardList(
                 signedIn = signedIn,
                 onSignin = {
-                    if (!signedIn) {
-                        scope.launch {
-                            val res = MineExtraNet.dailySignin()
-                            signedIn = res.code == 200 || res.code == -2
-                        }
-                    }
+                    if (!signedIn) onSignin()
                 },
                 onOpenRecentPlay = onOpenRecentPlay,
                 onOpenSubList = onOpenSubList,

@@ -12,6 +12,12 @@ import me.wcy.music.common.bean.SharedJson
  * 评论摘要在 notice/comment.content、时间是 time；通知摘要在 noticeMsg、时间是 time。
  * 统一通过 message()/timestamp() 取值，未登录或空数据时字段缺省。
  */
+/**
+ * msg/private、msg/comments、msg/notices 三接口的消息条目。
+ * 私信列表实测结构：id=lastMsgId、时间=lastMsgTime、头像来自 fromUser；
+ * lastMsg 是 JSON 串（{"msg":"正文",...}）；评论摘要在 notice/comment.content；通知在 noticeMsg。
+ * 统一通过 message()/timestamp() 取值。
+ */
 @Serializable
 data class MsgUser(
     @SerialName("userId")
@@ -32,8 +38,16 @@ data class MsgCommentData(
 data class MsgItem(
     @SerialName("id")
     val id: Long = 0,
+    // 私信列表的会话标识与时间在 lastMsgId/lastMsgTime 上
+    @SerialName("lastMsgId")
+    val lastMsgId: Long = 0,
+    @SerialName("lastMsgTime")
+    val lastMsgTime: Long = 0,
     @SerialName("user")
     val user: MsgUser? = null,
+    // 私信对端用户信息
+    @SerialName("fromUser")
+    val fromUser: MsgUser? = null,
     @SerialName("lastMsg")
     val lastMsg: String = "",
     @SerialName("noticeMsg")
@@ -65,7 +79,12 @@ data class MsgItem(
         lastMsg
     }
 
-    fun timestamp(): Long = if (createTime > 0) createTime else time
+    /** 会话对方的用户信息（私信用 fromUser，通知类无） */
+    fun peer(): MsgUser? = fromUser ?: user
+
+    fun timestamp(): Long {
+        return listOf(createTime, lastMsgTime, time).firstOrNull { it > 0 } ?: 0
+    }
 }
 
 @Serializable

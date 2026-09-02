@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -37,15 +38,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.compose.component.CoverImage
-import me.wcy.music.compose.component.PlaylistCard
 import me.wcy.music.compose.component.SongRow
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.search.SearchType
+import me.wcy.music.search.SearchTypeTabRow
+import me.wcy.music.search.SearchAlbumRow
+import me.wcy.music.search.SearchArtistRow
+import me.wcy.music.search.SearchDjRow
+import me.wcy.music.search.SearchMvRow
+import me.wcy.music.search.SearchPlaylistRow
+import me.wcy.music.search.SearchUserRow
 import me.wcy.music.search.SearchViewModel
 import me.wcy.music.search.bean.HotSearchWord
-import me.wcy.music.shared.net.SearchNet
+import me.wcy.music.search.bean.SearchMultiResult
+import me.wcy.music.shared.net.SearchMoreNet
 import me.wcy.music.shared.net.apiCall
 
 @Composable
@@ -54,30 +62,29 @@ fun SearchScreen(
     onBack: () -> Unit,
     onOpenPlaylistDetail: (Long) -> Unit,
     onPlayAll: (songs: List<SongData>) -> Unit,
-    onPlaySong: (song: SongData) -> Unit
+    onPlaySong: (song: SongData) -> Unit,
+    onClickItem: (type: SearchType, id: Long) -> Unit = { _, _ -> }
 ) {
     var keyword by remember { mutableStateOf("") }
     val keywords by viewModel.keywords.collectAsState()
     val showResult by viewModel.showResult.collectAsState()
     val historyKeywords by viewModel.historyKeywords.collectAsState()
     val hotWords by viewModel.hotWords.collectAsState()
-    var songs by remember { mutableStateOf<List<SongData>>(emptyList()) }
-    var playlists by remember { mutableStateOf<List<PlaylistData>>(emptyList()) }
+    var selectedType by remember { mutableStateOf(SearchType.SONG) }
+    var loading by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf(SearchMultiResult()) }
 
-    LaunchedEffect(keywords) {
+    LaunchedEffect(keywords, selectedType, showResult) {
         if (showResult && keywords.isNotEmpty()) {
-            val songRes = apiCall {
-                SearchNet.search(1, keywords, 30, 0)
+            loading = true
+            result = SearchMultiResult()
+            val res = apiCall {
+                SearchMoreNet.searchMulti(selectedType.apiType, keywords, 30, 0)
             }
-            if (songRes.isSuccessWithData()) {
-                songs = songRes.getDataOrThrow().songs
+            if (res.isSuccessWithData()) {
+                result = res.getDataOrThrow().result
             }
-            val playlistRes = apiCall {
-                SearchNet.search(1000, keywords, 30, 0)
-            }
-            if (playlistRes.isSuccessWithData()) {
-                playlists = playlistRes.getDataOrThrow().playlists
-            }
+            loading = false
         }
     }
 
@@ -93,43 +100,60 @@ fun SearchScreen(
             onBack = onBack
         )
         if (showResult) {
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                if (songs.isNotEmpty()) {
-                    item { SectionTitle("单曲") }
-                    item {
-                        PlayAllRow(
-                            songCount = songs.size,
-                            onPlayAll = { onPlayAll(songs) }
-                        )
-                    }
-                    itemsIndexed(songs) { _, song ->
-                        SongRow(
-                            song = song,
-                            onClick = { onPlaySong(song) }
-                        )
-                    }
-                }
-                if (playlists.isNotEmpty()) {
-                    item { SectionTitle("歌单") }
-                    item {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp)
-                        ) {
-                            itemsIndexed(playlists) { _, playlist ->
-                                PlaylistCard(
-                                    playlist = playlist,
-                                    modifier = Modifier.width(120.dp),
-                                    onClick = { onOpenPlaylistDetail(playlist.id) }
+            SearchTypeTabRow(
+                selected = selectedType,
+                onSelect = { selectedType = it }
+            )
+            val isEmpty = when (selectedType) {
+                SearchType.SONG -> result.songs.isEmpty()
+                SearchType.ARTIST -> result.artists.isEmpty()
+                SearchType.ALBUM -> result.albums.isEmpty()
+                SearchType.PLAYLIST -> result.playlists.isEmpty()
+                SearchType.MV -> result.mvs.isEmpty()
+                SearchType.RADIO -> result.djRadios.isEmpty()
+                SearchType.USER -> result.userprofiles.isEmpty()
+            }
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                when (selectedType) {
+                    SearchType.SONG -> {
+                        if (result.songs.isNotEmpty()) {
+                            item {
+                                PlayAllRow(
+                                    songCount = result.songs.size,
+                                    onPlayAll = { onPlayAll(result.songs) }
+                                )
+                            }
+                            itemsIndexed(result.songs) { _, song ->
+                                SongRow(
+                                    song = song,
+                                    onClick = { onPlaySong(song) }
                                 )
                             }
                         }
                     }
-                }
-                if (songs.isEmpty() && playlists.isEmpty()) {
-                    item {
-                        EmptyHint("未找到相关结果")
+                    SearchType.ARTIST -> itemsIndexed(result.artists) { _, item ->
+                        SearchArtistRow(item) { onClickItem(SearchType.ARTIST, item.id) }
                     }
+                    SearchType.ALBUM -> itemsIndexed(result.albums) { _, item ->
+                        SearchAlbumRow(item) { onClickItem(SearchType.ALBUM, item.id) }
+                    }
+                    SearchType.PLAYLIST -> itemsIndexed(result.playlists) { _, item ->
+                        SearchPlaylistRow(item) { onClickItem(SearchType.PLAYLIST, item.id) }
+                    }
+                    SearchType.MV -> itemsIndexed(result.mvs) { _, item ->
+                        SearchMvRow(item) { onClickItem(SearchType.MV, item.id) }
+                    }
+                    SearchType.RADIO -> itemsIndexed(result.djRadios) { _, item ->
+                        SearchDjRow(item) { onClickItem(SearchType.RADIO, item.id) }
+                    }
+                    SearchType.USER -> itemsIndexed(result.userprofiles) { _, item ->
+                        SearchUserRow(item) { onClickItem(SearchType.USER, item.userId) }
+                    }
+                }
+                if (loading) {
+                    item { LoadingHint() }
+                } else if (isEmpty) {
+                    item { EmptyHint("未找到相关结果") }
                 }
             }
         } else {
@@ -308,5 +332,18 @@ private fun SectionTitle(title: String) {
 private fun EmptyHint(text: String) {
     Box(modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
         Text(text = text, color = AppThemeColor.TextH2, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun LoadingHint() {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            color = AppThemeColor.ThemeColor,
+            modifier = Modifier.size(28.dp)
+        )
     }
 }

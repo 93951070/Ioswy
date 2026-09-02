@@ -48,6 +48,7 @@ fun CommentPanel(
     val total by viewModel.total.collectAsState()
     val hotComments by viewModel.hotComments.collectAsState()
     val comments by viewModel.comments.collectAsState()
+    val loading by viewModel.loading.collectAsState()
     var inputText by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val listState = rememberLazyListState()
@@ -99,14 +100,27 @@ fun CommentPanel(
                     })
                 }
             }
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("加载中…", color = AppThemeColor.TextH2, fontSize = 13.sp)
+            if (loading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("加载中…", color = AppThemeColor.TextH2, fontSize = 13.sp)
+                    }
+                }
+            } else if (comments.isEmpty() && hotComments.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("暂无评论", color = AppThemeColor.TextH2, fontSize = 13.sp)
+                    }
                 }
             }
         }

@@ -178,4 +178,23 @@ object MineExtraNet {
             )
         )
     }
+
+    /**
+     * 私信详情：与指定用户的聊天记录。uid 为对方 userId，before 传上一页最后一条时间戳做分页。
+     */
+    suspend fun getPrivateMsgHistory(
+        uid: Long,
+        limit: Int = 30,
+        before: Long = 0
+    ): MsgData {
+        return SharedJson.decodeBean(SharedNet.get(
+                "msg/private/history",
+                params = listOf(
+                    "uid" to uid,
+                    "limit" to limit,
+                    "before" to before
+                )
+            )
+        )
+    }
 }

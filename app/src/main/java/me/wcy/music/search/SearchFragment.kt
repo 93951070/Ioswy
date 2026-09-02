@@ -67,6 +67,22 @@ class SearchFragment : BaseMusicFragment() {
                         onPlaySong = { song ->
                             playerController.addAndPlay(song.toMediaItem())
                             CRouter.with(requireContext()).url(RoutePath.PLAYING).start()
+                        },
+                        onClickItem = { type, id ->
+                            val route = when (type) {
+                                SearchType.ARTIST -> RoutePath.ARTIST_DETAIL
+                                SearchType.ALBUM -> RoutePath.ALBUM_DETAIL
+                                SearchType.PLAYLIST -> RoutePath.PLAYLIST_DETAIL
+                                SearchType.MV -> RoutePath.MV_DETAIL
+                                SearchType.RADIO -> RoutePath.DJ_DETAIL
+                                else -> null
+                            }
+                            if (route != null) {
+                                CRouter.with(requireActivity())
+                                    .url(route)
+                                    .extra("id", id)
+                                    .start()
+                            }
                         }
                     )
                 }

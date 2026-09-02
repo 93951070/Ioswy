@@ -70,11 +70,20 @@ fun DiscoverScreen(
     onOpenPlaying: () -> Unit,
     onPlaySong: (SongData) -> Unit,
     onPlayPlaylist: (PlaylistData) -> Unit,
-    onPlayPlaylistSong: (PlaylistData, Int) -> Unit
+    onPlayPlaylistSong: (PlaylistData, Int) -> Unit,
+    onPlayDailySong: (List<SongData>, Int) -> Unit = { songs, index ->
+        songs.getOrNull(index)?.let(onPlaySong)
+    },
+    onOpenArtist: (Long) -> Unit = {},
+    onOpenDjRadio: (Long) -> Unit = {}
 ) {
     val bannerList by viewModel.bannerList.collectAsState()
     val recommendPlaylist by viewModel.recommendPlaylist.collectAsState()
     val rankingList by viewModel.rankingList.collectAsState()
+    val dailySongs by viewModel.dailySongs.collectAsState()
+    val hotArtistList by viewModel.hotArtistList.collectAsState()
+    val highQualityPlaylists by viewModel.highQualityPlaylists.collectAsState()
+    val djRadioList by viewModel.djRadioList.collectAsState()
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -108,6 +117,54 @@ fun DiscoverScreen(
             )
         }
 
+        if (dailySongs.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "每日推荐",
+                    onMore = onOpenRecommendSong
+                )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(dailySongs.size, key = { dailySongs[it].id }) { index ->
+                        DailySongCard(
+                            song = dailySongs[index],
+                            onClick = { onPlayDailySong(dailySongs, index) }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (rankingList.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "排行榜",
+                    onMore = onOpenRanking
+                )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(rankingList, key = { it.id }) { playlist ->
+                        RankingItem(
+                            playlist = playlist,
+                            modifier = Modifier.width(280.dp),
+                            onOpenDetail = { onOpenPlaylistDetail(playlist.id) },
+                            onSongClick = { pos ->
+                                onPlayPlaylistSong(playlist, pos)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
         if (recommendPlaylist.isNotEmpty()) {
             item {
                 SectionHeader(
@@ -134,21 +191,73 @@ fun DiscoverScreen(
             }
         }
 
-        if (rankingList.isNotEmpty()) {
+        if (hotArtistList.isNotEmpty()) {
             item {
                 SectionHeader(
-                    title = "排行榜",
-                    onMore = onOpenRanking
+                    title = "热门歌手",
+                    onMore = onOpenArtistList
                 )
             }
-            items(rankingList, key = { it.id }) { playlist ->
-                RankingItem(
-                    playlist = playlist,
-                    onOpenDetail = { onOpenPlaylistDetail(playlist.id) },
-                    onSongClick = { pos ->
-                        onPlayPlaylistSong(playlist, pos)
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(hotArtistList, key = { it.id }) { artist ->
+                        ArtistCircleItem(
+                            artist = artist,
+                            onClick = { onOpenArtist(artist.id) }
+                        )
                     }
+                }
+            }
+        }
+
+        if (highQualityPlaylists.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "热门精选",
+                    onMore = onOpenPlaylistSquare
                 )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(highQualityPlaylists, key = { it.id }) { playlist ->
+                        PlaylistCard(
+                            playlist = playlist,
+                            modifier = Modifier.width(120.dp),
+                            onClick = { onOpenPlaylistDetail(playlist.id) },
+                            onPlayClick = {
+                                onPlayPlaylist(playlist)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (djRadioList.isNotEmpty()) {
+            item {
+                SectionHeader(
+                    title = "电台精选",
+                    onMore = onOpenDj
+                )
+            }
+            item {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(djRadioList, key = { it.id }) { radio ->
+                        DjRadioCard(
+                            radio = radio,
+                            onClick = { onOpenDjRadio(radio.id) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -392,12 +501,12 @@ private fun SectionHeader(
 @Composable
 private fun RankingItem(
     playlist: PlaylistData,
+    modifier: Modifier = Modifier,
     onOpenDetail: () -> Unit,
     onSongClick: (Int) -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(AppThemeColor.Card)
