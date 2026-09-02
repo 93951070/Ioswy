@@ -11,7 +11,7 @@ struct ComposeView: UIViewControllerRepresentable {
 
 struct ContentView: View {
     var body: some View {
+        // 让 SwiftUI 自动避让灵动岛/状态栏/Home indicator
         ComposeView()
-            .ignoresSafeArea(.all, edges: .all)
     }
 }

@@ -74,8 +74,7 @@ import platform.Foundation.NSHomeDirectory
 
 private enum class IosTab(val label: String) {
     Discover("发现"),
-    Mine("我的"),
-    LocalMusic("本地音乐")
+    Mine("我的")
 }
 
 /** 简单页栈：只允许栈顶页面参与组合，backStack 空时显示首页 3 tab */
@@ -93,6 +92,7 @@ private sealed interface IosPage {
     data object Search : IosPage
     data object Playing : IosPage
     data object Login : IosPage
+    data object LocalMusic : IosPage
 }
 
 @Composable
@@ -227,20 +227,16 @@ fun IosRoot() {
                                 },
                                 onPlayPlaylistSong = onPlayPlaylistSong
                             )
-                            IosTab.Mine -> MineScreen(
+                            else -> MineScreen(
                                 viewModel = mineViewModel,
                                 profileFlow = session.profile,
                                 onOpenDrawer = { /* TODO iOS 无抽屉，先留空 */ },
                                 onOpenSearch = { push(IosPage.Search) },
                                 onOpenLogin = { push(IosPage.Login) },
-                                onOpenLocalMusic = { currentTab = IosTab.LocalMusic },
+                                onOpenLocalMusic = { push(IosPage.LocalMusic) },
                                 onOpenPlaylistDetail = { playlist, realtimeData, isLike ->
                                     push(IosPage.PlaylistDetail(playlist.id, realtimeData, isLike))
                                 }
-                            )
-                            IosTab.LocalMusic -> LocalMusicTab(
-                                engine = engine,
-                                onBack = { currentTab = IosTab.Mine }
                             )
                         }
                     }
@@ -299,6 +295,10 @@ fun IosRoot() {
                         onOpenPlaylistDetail = { id ->
                             push(IosPage.PlaylistDetail(id, realtimeData = false, isLike = false))
                         }
+                    )
+                    IosPage.LocalMusic -> LocalMusicTab(
+                        engine = engine,
+                        onBack = { pop() }
                     )
                     IosPage.Playing -> PlayingPage(
                         engine = engine,
