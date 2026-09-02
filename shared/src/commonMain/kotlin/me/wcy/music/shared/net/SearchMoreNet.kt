@@ -12,12 +12,15 @@ import me.wcy.music.search.bean.SearchMultiResultData
  */
 object SearchMoreNet {
 
+    /**
+     * cloudsearch 返回 {code, result} 结构（无 data 键），直接解 SearchMultiResultData。
+     */
     suspend fun searchMulti(
         type: Int,
         keywords: String,
         limit: Int = 30,
         offset: Int = 0
-    ): NetResult<SearchMultiResultData> {
+    ): SearchMultiResultData {
         return SharedJson.decodeBean(SharedNet.post(
                 "cloudsearch",
                 params = listOf(

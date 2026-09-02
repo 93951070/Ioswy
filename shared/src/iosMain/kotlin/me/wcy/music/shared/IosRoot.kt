@@ -354,6 +354,7 @@ fun IosRoot() {
 
         ModalNavigationDrawer(
             drawerState = drawerState,
+            gesturesEnabled = backStack.isEmpty(),
             drawerContent = {
                 ModalDrawerSheet {
                     IosDrawerContent(
@@ -534,6 +535,11 @@ fun IosRoot() {
                         isLiked = { songId -> songId in likeSongIds },
                         onToggleLike = { songId -> toggleLike(songId) },
                         onMessage = { toast(it) },
+                        onOpenFloor = { pid ->
+                            engine.currentSong.value?.let { song ->
+                                push(IosPage.CommentFloor(song.id, 0, pid))
+                            }
+                        },
                         onBack = { pop() }
                     )
                     IosPage.Login -> LoginPage(
@@ -943,6 +949,7 @@ private fun PlayingPage(
     isLiked: (Long) -> Boolean,
     onToggleLike: (Long) -> Unit,
     onMessage: (String) -> Unit,
+    onOpenFloor: (Long) -> Unit,
     onBack: () -> Unit
 ) {
     val commentViewModel = remember { CommentViewModel(IosMyCommentStore) }
@@ -982,11 +989,8 @@ private fun PlayingPage(
         onOpenMenu = { song, _ -> menuSong = song },
         onDownload = { onMessage("敬请期待") },
         onMessage = onMessage,
-        onOpenFloor = { pid ->
-            engine.currentSong.value?.let { song ->
-                push(IosPage.CommentFloor(song.id, 0, pid))
-            }
-        },
+        onOpenFloor = onOpenFloor,
+        onPlaylistEmpty = onBack,
         soundQuality = playQuality,
         onSelectQuality = {},
         lrcContent = lrcContent,

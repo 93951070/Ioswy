@@ -78,11 +78,11 @@ fun SearchScreen(
         if (showResult && keywords.isNotEmpty()) {
             loading = true
             result = SearchMultiResult()
-            val res = apiCall {
+            val res = runCatching {
                 SearchMoreNet.searchMulti(selectedType.apiType, keywords, 30, 0)
-            }
-            if (res.isSuccessWithData()) {
-                result = res.getDataOrThrow().result
+            }.getOrNull()
+            if (res != null && res.code == 200) {
+                result = res.result
             }
             loading = false
         }

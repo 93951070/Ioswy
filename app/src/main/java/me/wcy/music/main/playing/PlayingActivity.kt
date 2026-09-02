@@ -121,6 +121,7 @@ class PlayingActivity : BaseMusicActivity() {
                             .extra("parentCommentId", pid)
                             .start()
                     },
+                    onPlaylistEmpty = { onBackPressed() },
                     soundQuality = ConfigPreferences.playSoundQuality,
                     onSelectQuality = { level ->
                         if (level != ConfigPreferences.playSoundQuality) {

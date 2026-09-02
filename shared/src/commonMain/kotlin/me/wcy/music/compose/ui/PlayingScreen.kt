@@ -86,6 +86,7 @@ import me.wcy.music.shared.player.PlayerEngine
 @Composable
 fun PlayingScreen(
 
+
     playerEngine: PlayerEngine,
     commentViewModel: CommentViewModel,
     onClose: () -> Unit,
@@ -101,6 +102,7 @@ fun PlayingScreen(
     onUpdateLrc: (Long) -> Unit,
     lrcLabel: String,
     onOpenFloor: (parentCommentId: Long) -> Unit = {},
+    onPlaylistEmpty: () -> Unit = {},
 ) {
     val currentSong by playerEngine.currentSong.collectAsState()
     val isPlaying by playerEngine.isPlaying.collectAsState()
@@ -108,6 +110,10 @@ fun PlayingScreen(
     val buffering by playerEngine.bufferingPercent.collectAsState()
     val playMode by playerEngine.playMode.collectAsState()
 
+    // 播放列表被清空时退出播放页，避免整页空白
+    LaunchedEffect(currentSong) {
+        if (currentSong == null) onPlaylistEmpty()
+    }
     val song = currentSong ?: return
     val songId = song.id
     val coverUrl = song.al.getLargeCover()
