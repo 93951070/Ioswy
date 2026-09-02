@@ -773,9 +773,10 @@ private fun IosDrawerContent(
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (profile != null) {
+            val p: ProfileData? = profile
+            if (p != null) {
                 CoverImage(
-                    url = profile.avatarUrl,
+                    url = p.avatarUrl,
                     cornerRadius = 28.dp,
                     modifier = Modifier.size(56.dp)
                 )
