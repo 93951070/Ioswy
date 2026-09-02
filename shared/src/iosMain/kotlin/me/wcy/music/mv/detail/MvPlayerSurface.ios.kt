@@ -7,11 +7,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
-import platform.AVFoundation.AVLayerVideoGravityResizeAspect
-import platform.AVFoundation.AVPlayer
-import platform.AVFoundation.AVPlayerItem
-import platform.AVFoundation.AVPlayerLayer
-import platform.CoreGraphics.CGRect
+import platform.AVFoundation.*
+import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSURL
 import platform.UIKit.UIView
 
@@ -20,7 +17,7 @@ import platform.UIKit.UIView
  * 解决 Compose 首帧 container.bounds 为 0 导致画面白屏（只有声音）的问题。
  */
 @OptIn(ExperimentalForeignApi::class)
-private class PlayerContainerView : UIView(frame = CGRect()) {
+private class PlayerContainerView : UIView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0)) {
 
     override fun layoutSubviews() {
         super.layoutSubviews()

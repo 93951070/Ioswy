@@ -125,6 +125,7 @@ import me.wcy.music.dj.list.viewmodel.DjRecommendViewModel
 import me.wcy.music.mine.extra.cloud.CloudDiskScreen
 import me.wcy.music.mine.extra.cloud.CloudDiskViewModel
 import me.wcy.music.mine.extra.msg.MsgCenterScreen
+import me.wcy.music.mine.extra.msg.MsgDetailScreen
 import me.wcy.music.mine.extra.msg.MsgCenterViewModel
 import me.wcy.music.mine.extra.recent.RecentPlayScreen
 import me.wcy.music.mine.extra.recent.RecentPlayViewModel
@@ -647,14 +648,11 @@ fun IosRoot() {
                         )
                     }
 
-                    IosPage.MsgDetail -> {
-                        val page = current as IosPage.MsgDetail
-                        MsgDetailScreen(
-                            uid = page.uid,
-                            nickname = page.nickname,
-                            onBack = { pop() }
-                        )
-                    }
+                    is IosPage.MsgDetail -> MsgDetailScreen(
+                        uid = page.uid,
+                        nickname = page.nickname,
+                        onBack = { pop() }
+                    )
                 }
             }
 
@@ -970,7 +968,7 @@ private fun PlayingPage(
                 engine.playNext(song)
                 menuSong = null
             }
-            IosMenuRow(Icons.Filled.Tune, "音质：${qualityLabel(playQuality)}") {
+            IosMenuRow(Icons.Filled.Settings, "音质：${qualityLabel(playQuality)}") {
                 menuSong = null
                 showQualitySheet = true
             }
