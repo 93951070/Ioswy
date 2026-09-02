@@ -49,13 +49,13 @@ data class SongData(
     @SerialName("ftype")
     val ftype: Int = 0,
     @SerialName("djId")
-    val djId: Int = 0,
+    val djId: Long = 0,
     @SerialName("copyright")
     val copyright: Int = 0,
     @SerialName("s_id")
-    val sId: Int = 0,
+    val sId: Long = 0,
     @SerialName("mark")
-    val mark: Int = 0,
+    val mark: Long = 0,
     @SerialName("originCoverType")
     val originCoverType: Int = 0,
     @SerialName("originSongSimpleData")
@@ -73,9 +73,9 @@ data class SongData(
     @SerialName("cp")
     val cp: Int = 0,
     @SerialName("mv")
-    val mv: Int = 0,
+    val mv: Long = 0,
     @SerialName("publishTime")
-    val publishTime: Int = 0,
+    val publishTime: Long = 0,
     @SerialName("reason")
     val reason: String = "",
     @SerialName("tns")

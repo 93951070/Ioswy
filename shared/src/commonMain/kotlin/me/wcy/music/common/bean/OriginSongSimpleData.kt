@@ -10,7 +10,7 @@ import kotlinx.serialization.Transient
 @Serializable
 data class OriginSongSimpleData(
     @SerialName("songId")
-    val songId: Int = 0,
+    val songId: Long = 0,
     @SerialName("name")
     val name: String = "",
     @SerialName("artists")

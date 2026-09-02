@@ -14,7 +14,7 @@ data class QualityData(
     @SerialName("fid")
     val fid: Int = 0,
     @SerialName("size")
-    val size: Int = 0,
+    val size: Long = 0,
     @SerialName("vd")
     val vd: Int = 0,
     @SerialName("sr")

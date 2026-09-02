@@ -20,7 +20,7 @@ data class LoginStatusData(
         @Serializable
         data class Account(
     @SerialName("id")
-            val id: Int = 0,
+            val id: Long = 0,
     @SerialName("userName")
             val userName: String = "",
     @SerialName("type")
