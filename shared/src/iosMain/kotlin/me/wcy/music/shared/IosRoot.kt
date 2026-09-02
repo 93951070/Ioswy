@@ -2,6 +2,7 @@ package me.wcy.music.shared
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,11 +20,16 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
@@ -51,6 +57,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -80,6 +87,9 @@ import me.wcy.music.compose.ui.QrcodeLoginScreen
 import me.wcy.music.compose.ui.RankingScreen
 import me.wcy.music.compose.ui.RecommendSongScreen
 import me.wcy.music.compose.ui.SearchScreen
+import me.wcy.music.compose.ui.SettingChoice
+import me.wcy.music.compose.ui.SettingItem
+import me.wcy.music.compose.ui.SettingsScreen
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.discover.fm.viewmodel.PersonalFmViewModel
@@ -90,16 +100,37 @@ import me.wcy.music.discover.ranking.viewmodel.RankingViewModel
 import me.wcy.music.mine.home.viewmodel.MineViewModel
 import me.wcy.music.search.SearchViewModel
 import me.wcy.music.shared.account.IosUserSession
+import me.wcy.music.shared.net.DEFAULT_BASE_URL
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.MineNet
+import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.shared.net.apiCall
 import me.wcy.music.shared.player.IosPlayerEngine
+import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
 
 private enum class IosTab(val label: String) {
     Discover("发现"),
     Mine("我的")
+}
+
+private const val KEY_API_DOMAIN = "ios_api_domain"
+
+private fun loadApiDomain(): String =
+    NSUserDefaults.standardUserDefaults.stringForKey(KEY_API_DOMAIN) ?: ""
+
+private fun saveApiDomain(domain: String) {
+    NSUserDefaults.standardUserDefaults.setObject(domain, forKey = KEY_API_DOMAIN)
+}
+
+private const val KEY_DARK_MODE = "ios_dark_mode"
+
+private fun loadDarkMode(): String =
+    NSUserDefaults.standardUserDefaults.stringForKey(KEY_DARK_MODE) ?: "system"
+
+private fun saveDarkMode(mode: String) {
+    NSUserDefaults.standardUserDefaults.setObject(mode, forKey = KEY_DARK_MODE)
 }
 
 /** 简单页栈：只允许栈顶页面参与组合，backStack 空时显示首页 3 tab */
@@ -115,6 +146,7 @@ private sealed interface IosPage {
     data object RecommendSong : IosPage
     data object PersonalFm : IosPage
     data object Search : IosPage
+    data object Settings : IosPage
     data object Playing : IosPage
     data object Login : IosPage
     data object LocalMusic : IosPage
@@ -130,11 +162,16 @@ fun IosRoot() {
     val backStack = remember { mutableStateListOf<IosPage>() }
     var message by remember { mutableStateOf<String?>(null) }
 
+    // 外观与定时停止（设置页/抽屉共用）
+    var darkModeOverride by remember { mutableStateOf(loadDarkMode()) }
+    var showTimerDialog by remember { mutableStateOf(false) }
+    var timerJob by remember { mutableStateOf<Job?>(null) }
+
     // VM 在组合根创建，构造参数与 commonMain 定义精确对应
     val discoverViewModel = remember {
         DiscoverViewModel(
             profileFlow = session.profile,
-            hasApiDomain = { false },
+            hasApiDomain = { loadApiDomain().isNotEmpty() },
             cache = null
         )
     }
@@ -144,6 +181,23 @@ fun IosRoot() {
 
     fun toast(msg: String) {
         message = msg
+    }
+
+    fun applyTimerStop(minutes: Int) {
+        timerJob?.cancel()
+        timerJob = null
+        if (minutes <= 0) {
+            toast("已取消定时停止")
+        } else {
+            timerJob = scope.launch {
+                delay(minutes * 60_000L)
+                // IosPlayerEngine 无独立 pause：播放中才触发 playPause，保证"到点暂停"语义
+                if (engine.isPlaying.value) engine.playPause()
+                toast("定时时间到，已停止播放")
+            }
+            toast("已设置定时停止")
+        }
+        showTimerDialog = false
     }
 
     LaunchedEffect(message) {
@@ -223,8 +277,20 @@ fun IosRoot() {
         }
     }
 
-    MusicTheme {
+    val darkTheme = when (darkModeOverride) {
+        "light" -> false
+        "dark" -> true
+        else -> isSystemInDarkTheme()
+    }
+    MusicTheme(darkTheme = darkTheme) {
         val drawerState = rememberDrawerState(DrawerValue.Closed)
+        var showDomainDialog by remember { mutableStateOf(false) }
+        var domainInput by remember { mutableStateOf(SharedNet.baseUrl) }
+
+        LaunchedEffect(Unit) {
+            loadApiDomain().takeIf { it.isNotEmpty() }?.let { SharedNet.baseUrl = it }
+        }
+
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
@@ -243,6 +309,13 @@ fun IosRoot() {
                                 drawerState.close()
                             }
                         },
+                        onOpenDomainSettings = {
+                            scope.launch { drawerState.close() }
+                            domainInput = SharedNet.baseUrl
+                            showDomainDialog = true
+                        },
+                        onOpenSettings = { push(IosPage.Settings) },
+                        onOpenTimer = { showTimerDialog = true },
                         onMessage = ::toast
                     )
                 }
@@ -349,6 +422,17 @@ fun IosRoot() {
                         engine = engine,
                         onBack = { pop() }
                     )
+                    IosPage.Settings -> SettingsPage(
+                        darkModeOverride = darkModeOverride,
+                        onItemChange = { key, value ->
+                            if (key == "dark_mode") {
+                                darkModeOverride = value
+                                saveDarkMode(value)
+                                toast("外观已切换")
+                            }
+                        },
+                        onBack = { pop() }
+                    )
                     IosPage.Playing -> PlayingPage(
                         engine = engine,
                         isLiked = { songId -> songId in likeSongIds },
@@ -367,6 +451,63 @@ fun IosRoot() {
 
             ToastOverlay(message)
         }
+        }
+        if (showDomainDialog) {
+            AlertDialog(
+                onDismissRequest = { showDomainDialog = false },
+                title = { Text("接口设置") },
+                text = {
+                    Column {
+                        Text(
+                            text = "后端接口域名，留空恢复默认。修改后立即生效。",
+                            color = AppThemeColor.TextH2,
+                            fontSize = 13.sp
+                        )
+                        OutlinedTextField(
+                            value = domainInput,
+                            onValueChange = { domainInput = it },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val domain = domainInput.trim().trimEnd('/')
+                        saveApiDomain(domain)
+                        SharedNet.baseUrl = domain.ifEmpty { DEFAULT_BASE_URL }
+                        showDomainDialog = false
+                        toast("接口设置已保存")
+                    }) { Text("保存", color = AppThemeColor.ThemeColor) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDomainDialog = false }) {
+                        Text("取消", color = AppThemeColor.TextH2)
+                    }
+                }
+            )
+        }
+        if (showTimerDialog) {
+            AlertDialog(
+                onDismissRequest = { showTimerDialog = false },
+                title = { Text("定时停止播放") },
+                text = {
+                    Column {
+                        listOf("不停止" to 0, "15分钟" to 15, "30分钟" to 30, "60分钟" to 60, "90分钟" to 90)
+                            .forEach { (label, minutes) ->
+                                TextButton(
+                                    onClick = { applyTimerStop(minutes) },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(label, color = AppThemeColor.TextH1)
+                                }
+                            }
+                    }
+                },
+                confirmButton = {}
+            )
         }
     }
 }
@@ -554,7 +695,7 @@ private fun PlayingPage(
     onMessage: (String) -> Unit,
     onBack: () -> Unit
 ) {
-    val commentViewModel = remember { CommentViewModel() }
+    val commentViewModel = remember { CommentViewModel(IosMyCommentStore) }
     val currentSong by engine.currentSong.collectAsState()
     var lrcContent by remember { mutableStateOf("") }
     var lrcLabel by remember { mutableStateOf("歌词加载中…") }
@@ -578,9 +719,8 @@ private fun PlayingPage(
         onClose = onBack,
         isLiked = isLiked,
         onToggleLike = onToggleLike,
-        // TODO iOS 系统分享面板（UIActivityViewController）未接，先以消息展示分享链接
-        onShare = { _, songId ->
-            onMessage("分享链接：https://music.163.com/song?id=$songId")
+        onShare = { song, songId ->
+            IosShareHelper.shareText("分享歌曲：${song.name}\nhttps://music.163.com/song?id=$songId")
         },
         onOpenMenu = { song, _ -> menuSong = song },
         onDownload = { onMessage("敬请期待") },
@@ -605,6 +745,34 @@ private fun PlayingPage(
             }
         }
     }
+}
+
+@Composable
+private fun SettingsPage(
+    darkModeOverride: String,
+    onItemChange: (String, String) -> Unit,
+    onBack: () -> Unit
+) {
+    val items = listOf(
+        SettingItem(
+            key = "dark_mode",
+            category = "通用",
+            title = "外观",
+            dialogTitle = "外观",
+            value = darkModeOverride,
+            options = listOf(
+                SettingChoice("跟随系统", "system"),
+                SettingChoice("浅色模式", "light"),
+                SettingChoice("深色模式", "dark")
+            )
+        )
+    )
+    SettingsScreen(
+        items = items,
+        onItemChange = onItemChange,
+        onOpenSoundEffect = {},
+        onBack = onBack
+    )
 }
 
 @Composable
@@ -720,6 +888,9 @@ private fun IosDrawerContent(
     onClose: () -> Unit,
     onOpenLogin: () -> Unit,
     onLogout: () -> Unit,
+    onOpenDomainSettings: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenTimer: () -> Unit,
     onMessage: (String) -> Unit
 ) {
     val profile by session.profile.collectAsState()
@@ -771,6 +942,15 @@ private fun IosDrawerContent(
             }
         }
 
+        IosMenuRow(Icons.Filled.Public, "接口设置") {
+            onClose(); onOpenDomainSettings()
+        }
+        IosMenuRow(Icons.Filled.Settings, "功能设置") {
+            onClose(); onOpenSettings()
+        }
+        IosMenuRow(Icons.Filled.Timer, "定时停止播放") {
+            onClose(); onOpenTimer()
+        }
         IosMenuRow(Icons.Filled.Email, "我的消息") {
             onClose(); onMessage("功能开发中")
         }
@@ -787,6 +967,9 @@ private fun IosDrawerContent(
             IosMenuRow(Icons.Filled.ExitToApp, "退出登录") {
                 onClose(); onLogout()
             }
+        }
+        IosMenuRow(Icons.Filled.Info, "关于") {
+            onClose(); onMessage("PonyMusic 仿网易云音乐 · Compose Multiplatform 版")
         }
     }
 }

@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import me.wcy.music.shared.net.AccountNet
+import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.account.AccountPreference
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.consts.RoutePath
@@ -38,6 +39,7 @@ class UserServiceImpl @Inject constructor() : UserService {
 
     override suspend fun login(cookie: String): CommonResult<ProfileData> {
         AccountPreference.cookie = cookie
+        SharedNet.cookie = cookie
         val res = kotlin.runCatching {
             AccountNet.getLoginStatus()
         }
@@ -53,10 +55,12 @@ class UserServiceImpl @Inject constructor() : UserService {
                 CommonResult.success(profileData)
             } else {
                 AccountPreference.cookie = ""
+                SharedNet.cookie = ""
                 CommonResult.fail(status, msg = "login fail")
             }
         } else {
             AccountPreference.cookie = ""
+            SharedNet.cookie = ""
             CommonResult.fail(msg = res.exceptionOrNull()?.message)
         }
     }
@@ -66,6 +70,7 @@ class UserServiceImpl @Inject constructor() : UserService {
             AccountPreference.clear()
             NetCache.userCache.clear()
         }
+        SharedNet.cookie = ""
         _profile.value = null
     }
 

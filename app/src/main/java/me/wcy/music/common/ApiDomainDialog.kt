@@ -9,6 +9,7 @@ import me.wcy.music.R
 import me.wcy.music.account.AccountPreference
 import me.wcy.music.databinding.DialogApiDomainBinding
 import me.wcy.music.net.NetCache
+import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.storage.preference.ConfigPreferences
 import top.wangchenyan.common.CommonApp
 import top.wangchenyan.common.ext.getColorEx
@@ -61,6 +62,7 @@ class ApiDomainDialog(private val context: Context) {
                         toast("域名需要以'/'结尾")
                     } else {
                         ConfigPreferences.apiDomain = domain
+                        SharedNet.baseUrl = domain.trimEnd('/')
                         AccountPreference.clear()
                         CommonApp.appScope.launch {
                             NetCache.userCache.clear()

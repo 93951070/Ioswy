@@ -10,6 +10,7 @@
 		1A0000010000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000020000000000000001 /* ContentView.swift */; };
 		1A0000010000000000000002 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A0000020000000000000002 /* iOSApp.swift */; };
 		1A0000010000000000000003 /* Shared.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1A0000020000000000000003 /* Shared.framework */; };
+		1A0000010000000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A0000020000000000000006 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,6 +19,7 @@
 		1A0000020000000000000003 /* Shared.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; name = Shared.framework; path = Shared.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A0000020000000000000004 /* iosApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A0000020000000000000005 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		1A0000020000000000000006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +48,7 @@
 				1A0000020000000000000001 /* ContentView.swift */,
 				1A0000020000000000000002 /* iOSApp.swift */,
 				1A0000020000000000000005 /* Info.plist */,
+				1A0000020000000000000006 /* Assets.xcassets */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -67,6 +70,7 @@
 			buildPhases = (
 				1A0000030000000000000004 /* ShellScript */,
 				1A0000030000000000000002 /* Sources */,
+				1A0000030000000000000003 /* Resources */,
 				1A0000030000000000000001 /* Frameworks */,
 			);
 			buildRules = (
@@ -130,6 +134,17 @@
 			shellScript = "cd \"$SRCROOT/..\"\nif [ \"$PLATFORM_NAME\" == \"iphonesimulator\" ]; then\n  ARCH_DIR=\"iosSimulatorArm64\"\nelse\n  ARCH_DIR=\"iosArm64\"\nfi\n./gradlew \":shared:link${CONFIGURATION}Framework${ARCH_DIR}\"\nrm -rf \"$BUILT_PRODUCTS_DIR/Shared.framework\"\ncp -R \"shared/build/bin/${ARCH_DIR}/$(echo \"$CONFIGURATION\" | tr 'A-Z' 'a-z')Framework/Shared.framework\" \"$BUILT_PRODUCTS_DIR/\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1A0000030000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A0000010000000000000004 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1A0000030000000000000002 /* Sources */ = {

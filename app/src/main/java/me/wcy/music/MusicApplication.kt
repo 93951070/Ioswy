@@ -12,6 +12,7 @@ import androidx.media3.session.SessionToken
 import com.blankj.utilcode.util.ActivityUtils
 import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.HiltAndroidApp
+import me.wcy.music.account.AccountPreference
 import me.wcy.music.account.service.UserService
 import me.wcy.music.appwidget.WidgetRepository
 import me.wcy.music.common.DarkModeService
@@ -19,6 +20,9 @@ import me.wcy.music.common.MusicFragmentContainerActivity
 import me.wcy.music.service.MusicService
 import me.wcy.music.service.PlayServiceModule
 import me.wcy.music.service.likesong.LikeSongProcessor
+import me.wcy.music.shared.net.DEFAULT_BASE_URL
+import me.wcy.music.shared.net.SharedNet
+import me.wcy.music.storage.preference.ConfigPreferences
 import me.wcy.router.CRouter
 import me.wcy.router.RouterClient
 import top.wangchenyan.common.CommonApp
@@ -78,6 +82,9 @@ class MusicApplication : Application() {
         initCRouter()
         darkModeService.init()
         likeSongProcessor.init()
+
+        SharedNet.cookie = AccountPreference.cookie
+        SharedNet.baseUrl = ConfigPreferences.apiDomain.ifEmpty { DEFAULT_BASE_URL }
 
         val sessionToken =
             SessionToken(this, ComponentName(this, MusicService::class.java))

@@ -174,7 +174,7 @@ fun DrawerContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = profile?.nickname ?: "波尼音乐",
+                text = profile?.nickname ?: "网易云音乐",
                 color = Color.White,
                 fontSize = 20.sp
             )
@@ -186,7 +186,7 @@ fun DrawerContent(
             DrawerMenuRow(Icons.Filled.Logout, "退出登录", R.id.action_logout, onMenuSelect)
         }
         DrawerMenuRow(Icons.Filled.ExitToApp, "关闭应用", R.id.action_exit, onMenuSelect)
-        DrawerMenuRow(Icons.Filled.Description, "关于波尼音乐", R.id.action_about, onMenuSelect)
+        DrawerMenuRow(Icons.Filled.Description, "关于网易云音乐", R.id.action_about, onMenuSelect)
     }
 }
 

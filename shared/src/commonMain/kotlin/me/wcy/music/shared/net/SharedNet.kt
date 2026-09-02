@@ -16,8 +16,10 @@ import me.wcy.music.common.bean.SharedJson
  * 跨平台网络入口。引擎由各 target 依赖提供（Android=OkHttp, iOS=Darwin）。
  * 域名与 Cookie 由各端启动时注入。
  */
+const val DEFAULT_BASE_URL = "https://music.wangchenyan.top"
+
 object SharedNet {
-    var baseUrl: String = "https://music.wangchenyan.top"
+    var baseUrl: String = DEFAULT_BASE_URL
     var cookie: String = ""
 
     private val client by lazy {
