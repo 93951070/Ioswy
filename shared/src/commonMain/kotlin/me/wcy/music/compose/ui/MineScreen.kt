@@ -18,26 +18,38 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.common.bean.PlaylistData
+import me.wcy.music.mine.extra.MineExtraNet
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.component.PlaylistCard
 import me.wcy.music.compose.theme.AppThemeColor
@@ -51,12 +63,18 @@ fun MineScreen(
     onOpenSearch: () -> Unit,
     onOpenLogin: () -> Unit,
     onOpenLocalMusic: () -> Unit,
+    onOpenRecentPlay: () -> Unit,
+    onOpenSubList: () -> Unit,
+    onOpenCloudDisk: () -> Unit,
+    onOpenMsgCenter: () -> Unit,
     onOpenPlaylistDetail: (PlaylistData, Boolean, Boolean) -> Unit
 ) {
     val profile by profileFlow.collectAsState()
     val likePlaylist by viewModel.likePlaylist.collectAsState()
     val myPlaylists by viewModel.myPlaylists.collectAsState()
     val collectPlaylists by viewModel.collectPlaylists.collectAsState()
+    val scope = rememberCoroutineScope()
+    var signedIn by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -82,7 +100,22 @@ fun MineScreen(
         }
 
         item {
-            EntryCard(onOpenLocalMusic = onOpenLocalMusic)
+            MenuCardList(
+                signedIn = signedIn,
+                onSignin = {
+                    if (!signedIn) {
+                        scope.launch {
+                            val res = MineExtraNet.dailySignin()
+                            signedIn = res.code == 200 || res.code == -2
+                        }
+                    }
+                },
+                onOpenRecentPlay = onOpenRecentPlay,
+                onOpenSubList = onOpenSubList,
+                onOpenCloudDisk = onOpenCloudDisk,
+                onOpenMsgCenter = onOpenMsgCenter,
+                onOpenLocalMusic = onOpenLocalMusic
+            )
         }
 
         val like = likePlaylist
@@ -236,32 +269,98 @@ private fun ProfileHeader(
 }
 
 @Composable
-private fun EntryCard(onOpenLocalMusic: () -> Unit) {
-    Row(
+private fun MenuCardList(
+    signedIn: Boolean,
+    onSignin: () -> Unit,
+    onOpenRecentPlay: () -> Unit,
+    onOpenSubList: () -> Unit,
+    onOpenCloudDisk: () -> Unit,
+    onOpenMsgCenter: () -> Unit,
+    onOpenLocalMusic: () -> Unit
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(AppThemeColor.Card)
-            .clickable(onClick = onOpenLocalMusic)
+    ) {
+        MenuCardRow(
+            icon = Icons.Filled.DateRange,
+            title = "每日签到",
+            subtitle = if (signedIn) "今日已签" else "点击签到",
+            onClick = onSignin
+        )
+        MenuCardRow(
+            icon = Icons.Filled.Star,
+            title = "我的收藏",
+            subtitle = "歌手 / 专辑 / MV",
+            onClick = onOpenSubList
+        )
+        MenuCardRow(
+            icon = Icons.Filled.CloudQueue,
+            title = "音乐云盘",
+            subtitle = "",
+            onClick = onOpenCloudDisk
+        )
+        MenuCardRow(
+            icon = Icons.Filled.Chat,
+            title = "我的消息",
+            subtitle = "",
+            onClick = onOpenMsgCenter
+        )
+        MenuCardRow(
+            icon = Icons.Filled.History,
+            title = "最近播放",
+            subtitle = "",
+            onClick = onOpenRecentPlay
+        )
+        MenuCardRow(
+            icon = Icons.Filled.LibraryMusic,
+            title = "本地/下载音乐",
+            subtitle = "",
+            onClick = onOpenLocalMusic
+        )
+    }
+}
+
+@Composable
+private fun MenuCardRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp)
             .height(56.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Filled.LibraryMusic,
-            contentDescription = "本地/下载音乐",
+            imageVector = icon,
+            contentDescription = title,
             tint = AppThemeColor.ThemeColor,
             modifier = Modifier.size(24.dp)
         )
         Text(
-            text = "本地/下载音乐",
+            text = title,
             color = AppThemeColor.TextH1,
             fontSize = 15.sp,
             modifier = Modifier
                 .weight(1f)
                 .padding(start = 12.dp)
         )
+        if (subtitle.isNotEmpty()) {
+            Text(
+                text = subtitle,
+                color = AppThemeColor.TextH2,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(end = 6.dp)
+            )
+        }
         Icon(
             imageVector = Icons.Filled.ChevronRight,
             contentDescription = "进入",

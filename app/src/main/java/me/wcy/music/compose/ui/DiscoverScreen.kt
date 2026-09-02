@@ -24,6 +24,10 @@ fun DiscoverScreen(
     onOpenPlaylistSquare: () -> Unit,
     onOpenRecommendSong: () -> Unit,
     onOpenPersonalFm: () -> Unit,
+    onOpenArtistList: () -> Unit,
+    onOpenNewSong: () -> Unit,
+    onOpenDj: () -> Unit,
+    onOpenMvList: () -> Unit,
     onOpenPlaying: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -50,6 +54,10 @@ fun DiscoverScreen(
         onOpenPlaylistSquare = onOpenPlaylistSquare,
         onOpenRecommendSong = onOpenRecommendSong,
         onOpenPersonalFm = onOpenPersonalFm,
+        onOpenArtistList = onOpenArtistList,
+        onOpenNewSong = onOpenNewSong,
+        onOpenDj = onOpenDj,
+        onOpenMvList = onOpenMvList,
         onOpenPlaying = onOpenPlaying,
         onPlaySong = { song: SongData ->
             playerController.addAndPlay(song.toMediaItem())

@@ -170,6 +170,33 @@ class MainActivity : BaseMusicActivity() {
                             onOpenPersonalFm = {
                                 CRouter.with(this@MainActivity).url(RoutePath.PERSONAL_FM).start()
                             },
+                            onOpenArtistList = {
+                                CRouter.with(this@MainActivity).url(RoutePath.ARTIST_LIST).start()
+                            },
+                            onOpenNewSong = {
+                                CRouter.with(this@MainActivity).url(RoutePath.ALBUM_NEW).start()
+                            },
+                            onOpenDj = {
+                                CRouter.with(this@MainActivity).url(RoutePath.DJ_RECOMMEND).start()
+                            },
+                            onOpenMvList = {
+                                CRouter.with(this@MainActivity).url(RoutePath.MV_LIST).start()
+                            },
+                            onOpenRecentPlay = {
+                                CRouter.with(this@MainActivity)
+                                    .url(RoutePath.RECENT_PLAY)
+                                    .extra("uid", userService.getUserId())
+                                    .start()
+                            },
+                            onOpenSubList = {
+                                CRouter.with(this@MainActivity).url(RoutePath.SUB_LIST).start()
+                            },
+                            onOpenCloudDisk = {
+                                CRouter.with(this@MainActivity).url(RoutePath.CLOUD_DISK).start()
+                            },
+                            onOpenMsgCenter = {
+                                CRouter.with(this@MainActivity).url(RoutePath.MSG_CENTER).start()
+                            },
                             onOpenLocalMusic = {
                                 CRouter.with(this@MainActivity).url(RoutePath.LOCAL_SONG).start()
                             },

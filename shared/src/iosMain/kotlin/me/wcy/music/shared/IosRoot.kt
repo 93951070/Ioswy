@@ -107,6 +107,32 @@ import me.wcy.music.shared.net.MineNet
 import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.shared.net.apiCall
 import me.wcy.music.shared.player.IosPlayerEngine
+import me.wcy.music.album.detail.AlbumDetailScreen
+import me.wcy.music.album.detail.viewmodel.AlbumDetailViewModel
+import me.wcy.music.album.new.AlbumNewScreen
+import me.wcy.music.album.new.viewmodel.AlbumNewViewModel
+import me.wcy.music.artist.detail.ArtistDetailScreen
+import me.wcy.music.artist.detail.viewmodel.ArtistDetailViewModel
+import me.wcy.music.artist.list.ArtistListScreen
+import me.wcy.music.artist.list.viewmodel.ArtistListViewModel
+import me.wcy.music.dj.detail.DjDetailScreen
+import me.wcy.music.dj.detail.viewmodel.DjDetailViewModel
+import me.wcy.music.dj.list.DjRecommendScreen
+import me.wcy.music.dj.list.viewmodel.DjRecommendViewModel
+import me.wcy.music.mine.extra.cloud.CloudDiskScreen
+import me.wcy.music.mine.extra.cloud.CloudDiskViewModel
+import me.wcy.music.mine.extra.msg.MsgCenterScreen
+import me.wcy.music.mine.extra.msg.MsgCenterViewModel
+import me.wcy.music.mine.extra.recent.RecentPlayScreen
+import me.wcy.music.mine.extra.recent.RecentPlayViewModel
+import me.wcy.music.mine.extra.sub.SubListScreen
+import me.wcy.music.mine.extra.sub.SubListViewModel
+import me.wcy.music.mv.MvListScreen
+import me.wcy.music.mv.detail.MvDetailScreen
+import me.wcy.music.mv.detail.viewmodel.MvDetailViewModel
+import me.wcy.music.mv.viewmodel.MvListViewModel
+import me.wcy.music.personalnewsong.NewSongScreen
+import me.wcy.music.personalnewsong.viewmodel.NewSongViewModel
 import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
@@ -151,6 +177,19 @@ private sealed interface IosPage {
     data object Playing : IosPage
     data object Login : IosPage
     data object LocalMusic : IosPage
+    data object ArtistList : IosPage
+    data class ArtistDetail(val id: Long) : IosPage
+    data class AlbumDetail(val id: Long) : IosPage
+    data object AlbumNew : IosPage
+    data object MvList : IosPage
+    data class MvDetail(val id: Long) : IosPage
+    data object DjRecommend : IosPage
+    data class DjDetail(val rid: Long) : IosPage
+    data object NewSong : IosPage
+    data object RecentPlay : IosPage
+    data object SubList : IosPage
+    data object CloudDisk : IosPage
+    data object MsgCenter : IosPage
 }
 
 @Composable
@@ -343,6 +382,10 @@ fun IosRoot() {
                                 onOpenPlaylistSquare = { push(IosPage.PlaylistSquare) },
                                 onOpenRecommendSong = { push(IosPage.RecommendSong) },
                                 onOpenPersonalFm = { push(IosPage.PersonalFm) },
+                                onOpenArtistList = { push(IosPage.ArtistList) },
+                                onOpenNewSong = { push(IosPage.NewSong) },
+                                onOpenDj = { push(IosPage.DjRecommend) },
+                                onOpenMvList = { push(IosPage.MvList) },
                                 onOpenPlaying = { push(IosPage.Playing) },
                                 onPlaySong = { song -> engine.playSongList(listOf(song), 0) },
                                 onPlayPlaylist = { playlist ->
@@ -357,6 +400,10 @@ fun IosRoot() {
                                 onOpenSearch = { push(IosPage.Search) },
                                 onOpenLogin = { push(IosPage.Login) },
                                 onOpenLocalMusic = { push(IosPage.LocalMusic) },
+                                onOpenRecentPlay = { push(IosPage.RecentPlay) },
+                                onOpenSubList = { push(IosPage.SubList) },
+                                onOpenCloudDisk = { push(IosPage.CloudDisk) },
+                                onOpenMsgCenter = { push(IosPage.MsgCenter) },
                                 onOpenPlaylistDetail = { playlist, realtimeData, isLike ->
                                     push(IosPage.PlaylistDetail(playlist.id, realtimeData, isLike))
                                 }
@@ -447,6 +494,120 @@ fun IosRoot() {
                         onMessage = { toast(it) },
                         onBack = { pop() }
                     )
+                    IosPage.ArtistList -> {
+                        val vm = remember { ArtistListViewModel() }
+                        ArtistListScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onOpenArtist = { push(IosPage.ArtistDetail(it)) }
+                        )
+                    }
+                    is IosPage.ArtistDetail -> {
+                        val vm = remember { ArtistDetailViewModel() }
+                        ArtistDetailScreen(
+                            viewModel = vm,
+                            artistId = page.id,
+                            onBack = { pop() },
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) },
+                            onOpenAlbum = { push(IosPage.AlbumDetail(it)) },
+                            onOpenMv = { push(IosPage.MvDetail(it)) }
+                        )
+                    }
+                    is IosPage.AlbumDetail -> {
+                        val vm = remember { AlbumDetailViewModel() }
+                        AlbumDetailScreen(
+                            viewModel = vm,
+                            albumId = page.id,
+                            onBack = { pop() },
+                            onOpenArtist = { push(IosPage.ArtistDetail(it)) },
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) }
+                        )
+                    }
+                    IosPage.AlbumNew -> {
+                        val vm = remember { AlbumNewViewModel() }
+                        AlbumNewScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onOpenAlbum = { push(IosPage.AlbumDetail(it)) }
+                        )
+                    }
+                    IosPage.MvList -> {
+                        val vm = remember { MvListViewModel() }
+                        MvListScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onOpenMv = { push(IosPage.MvDetail(it)) }
+                        )
+                    }
+                    is IosPage.MvDetail -> {
+                        val vm = remember { MvDetailViewModel() }
+                        MvDetailScreen(
+                            viewModel = vm,
+                            mvid = page.id,
+                            onBack = { pop() },
+                            onPlayMv = { url -> IosMvPlayer.present(url) }
+                        )
+                    }
+                    IosPage.DjRecommend -> {
+                        val vm = remember { DjRecommendViewModel() }
+                        DjRecommendScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onOpenDj = { push(IosPage.DjDetail(it)) }
+                        )
+                    }
+                    is IosPage.DjDetail -> {
+                        val vm = remember { DjDetailViewModel() }
+                        DjDetailScreen(
+                            viewModel = vm,
+                            rid = page.rid,
+                            onBack = { pop() },
+                            onPlaySong = { song -> engine.playSongList(listOf(song), 0) }
+                        )
+                    }
+                    IosPage.NewSong -> {
+                        val vm = remember { NewSongViewModel() }
+                        NewSongScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) }
+                        )
+                    }
+                    IosPage.RecentPlay -> {
+                        val vm = remember { RecentPlayViewModel() }
+                        vm.uid = session.getUserId()
+                        RecentPlayScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) }
+                        )
+                    }
+                    IosPage.SubList -> {
+                        val vm = remember { SubListViewModel() }
+                        SubListScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onOpenArtist = { push(IosPage.ArtistDetail(it)) },
+                            onOpenAlbum = { push(IosPage.AlbumDetail(it)) },
+                            onOpenMv = { push(IosPage.MvDetail(it)) }
+                        )
+                    }
+                    IosPage.CloudDisk -> {
+                        val vm = remember { CloudDiskViewModel() }
+                        CloudDiskScreen(
+                            viewModel = vm,
+                            onBack = { pop() },
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) },
+                            onDelete = { item -> scope.launch { vm.delete(item) } }
+                        )
+                    }
+                    IosPage.MsgCenter -> {
+                        val vm = remember { MsgCenterViewModel() }
+                        MsgCenterScreen(
+                            viewModel = vm,
+                            onBack = { pop() }
+                        )
+                    }
                 }
             }
 

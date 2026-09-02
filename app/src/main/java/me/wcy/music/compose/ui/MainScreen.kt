@@ -65,6 +65,14 @@ fun MainScreen(
     onOpenPlaylistSquare: () -> Unit,
     onOpenRecommendSong: () -> Unit,
     onOpenPersonalFm: () -> Unit,
+    onOpenArtistList: () -> Unit,
+    onOpenNewSong: () -> Unit,
+    onOpenDj: () -> Unit,
+    onOpenMvList: () -> Unit,
+    onOpenRecentPlay: () -> Unit,
+    onOpenSubList: () -> Unit,
+    onOpenCloudDisk: () -> Unit,
+    onOpenMsgCenter: () -> Unit,
     onOpenLocalMusic: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenLogin: () -> Unit
@@ -84,6 +92,10 @@ fun MainScreen(
                     onOpenPlaylistSquare = onOpenPlaylistSquare,
                     onOpenRecommendSong = onOpenRecommendSong,
                     onOpenPersonalFm = onOpenPersonalFm,
+                    onOpenArtistList = onOpenArtistList,
+                    onOpenNewSong = onOpenNewSong,
+                    onOpenDj = onOpenDj,
+                    onOpenMvList = onOpenMvList,
                     onOpenPlaying = onOpenPlaying
                 )
                 NaviTab.Mine -> MineScreen(
@@ -93,6 +105,10 @@ fun MainScreen(
                     onOpenSearch = onOpenSearch,
                     onOpenLogin = onOpenLogin,
                     onOpenLocalMusic = onOpenLocalMusic,
+                    onOpenRecentPlay = onOpenRecentPlay,
+                    onOpenSubList = onOpenSubList,
+                    onOpenCloudDisk = onOpenCloudDisk,
+                    onOpenMsgCenter = onOpenMsgCenter,
                     onOpenPlaylistDetail = { playlist, realtime, like ->
                         onOpenPlaylistDetail(playlist.id)
                     }

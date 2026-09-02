@@ -85,4 +85,24 @@ Entries discovered by the Agent during task execution should follow this format:
   - Compose `by collectAsState()`/`by remember{mutableStateOf}` 委托属性禁止 smart cast：`if (x != null)` 后直接访问 x.field 会报 "Smart cast is impossible, because x is a delegated property"——必须先赋局部变量 `val v = x` 再判空使用；生成代码批量排查 `by collectAsState|by remember`
   - K/N 二维码生成：CoreImage→CGImage→UIImage→PNG→Skia 的 interop 链坑多（qrCodeGenerator/PNGData/toComposeImageBitmap 全 unresolved），直接用 qrose 库（io.github.alexzhirkevich:qrose:1.0.1，纯 KMP klib，`rememberQrCodePainter(content)` 返回 Painter 配合 Image）
   - iOS Assets/图标/启动屏：纯 plist 方案（UILaunchScreen dict 配 UIColorName+UIImageName 指向 Assets.xcassets）；手写 pbxproj 必须注册 PBXResourcesBuildPhase + PBXBuildFile + PBXFileReference（folder.assetcatalog），否则 actool 不打包、图标静默失效
-  - 双端登录态注入：SharedNet.cookie/baseUrl 是共享层唯一真值镜像，Android 端 UserServiceImpl.login/logout + MusicApplication.onCreate 必须同步（AccountPreference 为真值来源），否则登录/红心/评论/推荐全链路 401
+   - 双端登录态注入：SharedNet.cookie/baseUrl 是共享层唯一真值镜像，Android 端 UserServiceImpl.login/logout + MusicApplication.onCreate 必须同步（AccountPreference 为真值来源），否则登录/红心/评论/推荐全链路 401
+
+[Project Knowledge Summary]
+- Date: 2026-09-02
+- Context: Discovered by Agent while performing 歌手域并行开发编译验证
+- Category: Workflow & Collaboration | Troubleshooting & Debugging
+- Instructions:
+  - 多 agent 并行写 shared 模块时 :app:compileDebugKotlin 会撞上其他域的中间态编译错误（报错文件属其他域如 mine/album/mv 时，等 3-5 分钟对方稳定后重试，勿修改他人文件）
+  - Gradle Kotlin 增量编译按内容 hash 判定 UP-TO-DATE，touch 同内容文件不触发重编；确认编译产物直接查 shared/build/tmp/kotlin-classes/debug 与 app/build/tmp/kotlin-classes/debug 下的类文件
+  - decodeBean 的 fixLegacyFields 递归替换所有层级的 "artists"→"ar"：新接口返回体含顶层 artists 数组时（如 /artist/list），bean 必须用 @SerialName("ar") 接收
+
+[Project Knowledge Summary]
+- Date: 2026-09-02
+- Context: 电台/播客域开发前用 curl 实测接口返回结构时发现
+- Category: Environment Configuration
+- Instructions:
+  - 本地网易接口代理运行在 http://127.0.0.1:3000（NedeaseCloudMusicApi 兼容），可 curl 实测真实返回结构后再建 bean
+  - 推荐节目接口实际路径是 program/recommend（带斜杠），任务描述里的 program_recommend 下划线写法会 404
+  - dj/recommend 返回 {djRadios, name, code} 无 hasMore/count；dj/hot、dj/sublist 返回 {djRadios, hasMore, code}；dj/program 返回 {count, code, programs}；dj/detail 返回 {code, msg, data:{...subed 直接在 data 上}}
+  - SharedJson.decodeBean 的 fixLegacyFields 会把整棵 JSON 树里所有 duration 键改名为 dt，电台节目(DjProgramData)自身时长字段需用 @SerialName("dt") 接收
+  - 工作区存在多 Agent 并行开发：编译失败先看错误归属域，可能是他域在途中间态，等待重试即可；gradle 编译用 --rerun 才能绕过内容哈希 UP-TO-DATE 强制验证

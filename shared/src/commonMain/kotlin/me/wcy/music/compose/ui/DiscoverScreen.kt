@@ -24,9 +24,13 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Slideshow
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,6 +63,10 @@ fun DiscoverScreen(
     onOpenPlaylistSquare: () -> Unit,
     onOpenRecommendSong: () -> Unit,
     onOpenPersonalFm: () -> Unit,
+    onOpenArtistList: () -> Unit,
+    onOpenNewSong: () -> Unit,
+    onOpenDj: () -> Unit,
+    onOpenMvList: () -> Unit,
     onOpenPlaying: () -> Unit,
     onPlaySong: (SongData) -> Unit,
     onPlayPlaylist: (PlaylistData) -> Unit,
@@ -92,7 +100,11 @@ fun DiscoverScreen(
                 onOpenRecommendSong = onOpenRecommendSong,
                 onOpenPersonalFm = onOpenPersonalFm,
                 onOpenPlaylistSquare = onOpenPlaylistSquare,
-                onOpenRanking = onOpenRanking
+                onOpenRanking = onOpenRanking,
+                onOpenArtistList = onOpenArtistList,
+                onOpenNewSong = onOpenNewSong,
+                onOpenDj = onOpenDj,
+                onOpenMvList = onOpenMvList
             )
         }
 
@@ -238,33 +250,68 @@ private fun EntranceRow(
     onOpenRecommendSong: () -> Unit,
     onOpenPersonalFm: () -> Unit,
     onOpenPlaylistSquare: () -> Unit,
-    onOpenRanking: () -> Unit
+    onOpenRanking: () -> Unit,
+    onOpenArtistList: () -> Unit,
+    onOpenNewSong: () -> Unit,
+    onOpenDj: () -> Unit,
+    onOpenMvList: () -> Unit
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceAround
-    ) {        EntranceItem(
-            icon = Icons.Filled.DateRange,
-            label = "每日推荐",
-            onClick = onOpenRecommendSong
-        )
-        EntranceItem(
-            icon = Icons.Filled.Radio,
-            label = "私人FM",
-            onClick = onOpenPersonalFm
-        )
-        EntranceItem(
-            icon = Icons.Filled.QueueMusic,
-            label = "歌单",
-            onClick = onOpenPlaylistSquare
-        )
-        EntranceItem(
-            icon = Icons.Filled.BarChart,
-            label = "排行榜",
-            onClick = onOpenRanking
-        )
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            EntranceItem(
+                icon = Icons.Filled.DateRange,
+                label = "每日推荐",
+                onClick = onOpenRecommendSong
+            )
+            EntranceItem(
+                icon = Icons.Filled.Radio,
+                label = "私人FM",
+                onClick = onOpenPersonalFm
+            )
+            EntranceItem(
+                icon = Icons.Filled.QueueMusic,
+                label = "歌单",
+                onClick = onOpenPlaylistSquare
+            )
+            EntranceItem(
+                icon = Icons.Filled.BarChart,
+                label = "排行榜",
+                onClick = onOpenRanking
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            EntranceItem(
+                icon = Icons.Filled.Person,
+                label = "歌手",
+                onClick = onOpenArtistList
+            )
+            EntranceItem(
+                icon = Icons.Filled.Star,
+                label = "新歌",
+                onClick = onOpenNewSong
+            )
+            EntranceItem(
+                icon = Icons.Filled.PlayCircle,
+                label = "电台",
+                onClick = onOpenDj
+            )
+            EntranceItem(
+                icon = Icons.Filled.Slideshow,
+                label = "MV",
+                onClick = onOpenMvList
+            )
+        }
     }
 }
 
