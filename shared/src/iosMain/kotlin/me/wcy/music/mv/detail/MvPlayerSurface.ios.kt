@@ -144,8 +144,9 @@ actual fun MvPlayerSurface(
     ) {
         UIKitView(
             modifier = Modifier.fillMaxSize(),
-            factory = { container ->
+            factory = {
                 // factory 里显式创建 AVPlayerLayer 并挂 player：缺这步只有声音画面全黑
+                val container = UIView()
                 val layer = AVPlayerLayer()
                 layer.player = player
                 layer.videoGravity = AVLayerVideoGravityResizeAspect
