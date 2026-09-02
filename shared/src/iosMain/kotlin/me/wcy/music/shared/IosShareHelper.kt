@@ -29,14 +29,9 @@ object IosShareHelper {
     }
 
     private fun topViewController(): UIViewController? {
-        val scenes = UIApplication.sharedApplication.connectedScenes
-        val windowScenes = scenes.allObjects.filterIsInstance<UIWindowScene>()
-        val windowScene = windowScenes.firstOrNull {
-            it.activationState == UISceneActivationStateForegroundActive
-        } ?: windowScenes.firstOrNull() ?: return null
-        val window = windowScene.windows.firstOrNull { it.isKeyWindow }
-            ?: windowScene.windows.firstOrNull()
-            ?: return null
+        // keyWindow 在 iOS 13+ deprecated 但 K/N 仍可用且稳定，scene API 的 K/N 集合映射坑多
+        @Suppress("DEPRECATION")
+        val window = UIApplication.sharedApplication.keyWindow ?: return null
         var viewController = window.rootViewController ?: return null
         while (viewController.presentedViewController != null) {
             viewController = viewController.presentedViewController!!

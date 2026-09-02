@@ -14,6 +14,7 @@ import platform.Foundation.NSUserDefaults
  */
 object IosMyCommentStore : MyCommentStore {
 
+    private const val KEY = "ios_my_comments"
     private val defs = NSUserDefaults.standardUserDefaults
     private val serializer = MapSerializer(
         String.serializer(),
@@ -42,8 +43,4 @@ object IosMyCommentStore : MyCommentStore {
                 .mapKeys { (key, _) -> key.toLongOrNull() ?: 0L }
         }
     }.getOrNull() ?: emptyMap()
-
-    private companion object {
-        const val KEY = "ios_my_comments"
-    }
 }

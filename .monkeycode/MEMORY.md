@@ -75,3 +75,14 @@ Entries discovered by the Agent during task execution should follow this format:
   - xcodebuild CONFIGURATION_BUILD_DIR 相对路径按 **项目目录**（iosApp/）解析，取产物用 iosApp/build/Debug-iphoneos/
   - 用户仓库 push 后 workflow 可能不自动触发（首推新增 workflow 的 quirk），用 API dispatch：POST /repos/{owner}/{repo}/actions/workflows/ios-build.yml/dispatches {"ref":"main"}
   - 推送用一次性 URL git push https://TOKEN@github.com/...（不写入 .git/config）
+
+[Project Knowledge Summary]
+- Date: 2026-09-02
+- Context: iOS 多轮云构建失败修复过程中发现（qrose 二维码/设置页/分享接线）
+- Category: Build Methods | Troubleshooting & Debugging
+- Instructions:
+  - **Linux 本地可跑 `./gradlew :shared:compileKotlinIosSimulatorArm64` 验证 iosMain 代码编译**（klib 编译可行；完整 framework link 仍需 macOS 云构建）——改 iosMain 后先本地跑这个，能消灭大部分 K/N unresolved 错误，避免 10 分钟一轮的云构建试错
+  - Compose `by collectAsState()`/`by remember{mutableStateOf}` 委托属性禁止 smart cast：`if (x != null)` 后直接访问 x.field 会报 "Smart cast is impossible, because x is a delegated property"——必须先赋局部变量 `val v = x` 再判空使用；生成代码批量排查 `by collectAsState|by remember`
+  - K/N 二维码生成：CoreImage→CGImage→UIImage→PNG→Skia 的 interop 链坑多（qrCodeGenerator/PNGData/toComposeImageBitmap 全 unresolved），直接用 qrose 库（io.github.alexzhirkevich:qrose:1.0.1，纯 KMP klib，`rememberQrCodePainter(content)` 返回 Painter 配合 Image）
+  - iOS Assets/图标/启动屏：纯 plist 方案（UILaunchScreen dict 配 UIColorName+UIImageName 指向 Assets.xcassets）；手写 pbxproj 必须注册 PBXResourcesBuildPhase + PBXBuildFile + PBXFileReference（folder.assetcatalog），否则 actool 不打包、图标静默失效
+  - 双端登录态注入：SharedNet.cookie/baseUrl 是共享层唯一真值镜像，Android 端 UserServiceImpl.login/logout + MusicApplication.onCreate 必须同步（AccountPreference 为真值来源），否则登录/红心/评论/推荐全链路 401
