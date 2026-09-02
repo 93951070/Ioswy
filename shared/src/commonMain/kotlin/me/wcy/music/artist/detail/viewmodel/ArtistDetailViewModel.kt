@@ -43,13 +43,12 @@ class ArtistDetailViewModel : ViewModel() {
         val detail = runCatching {
             ArtistNet.getArtistDetail(artistId)
         }.getOrNull() ?: return false
-        if (detail.code != 200) return false
         _artist.value = detail.artist
         _subscribed.value = detail.artist.subbed
         var songs = detail.hotSongs
         if (songs.isEmpty()) {
             songs = runCatching { ArtistNet.getArtistTopSong(artistId) }.getOrNull()
-                ?.takeIf { it.code == 200 }?.songs ?: emptyList()
+                ?.songs ?: emptyList()
         }
         _hotSongs.value = songs
         return true
@@ -59,7 +58,6 @@ class ArtistDetailViewModel : ViewModel() {
         val data = runCatching {
             ArtistNet.getArtistAlbum(artistId)
         }.getOrNull() ?: return false
-        if (data.code != 200) return false
         _albums.value = data.hotAlbums
         return true
     }
@@ -68,7 +66,6 @@ class ArtistDetailViewModel : ViewModel() {
         val data = runCatching {
             ArtistNet.getArtistMv(artistId)
         }.getOrNull() ?: return false
-        if (data.code != 200) return false
         _mvs.value = data.mvs
         return true
     }
@@ -77,7 +74,6 @@ class ArtistDetailViewModel : ViewModel() {
         val data = runCatching {
             ArtistNet.getArtistDesc(artistId)
         }.getOrNull() ?: return false
-        if (data.code != 200) return false
         _desc.value = data
         return true
     }

@@ -32,4 +32,7 @@ interface PlayerEngine {
 
     /** 「下一首播放」：插入到当前歌曲之后 */
     fun playNext(song: SongData)
+
+    /** 按当前音质设置重取 url 重新播当前歌（音质切换后调用） */
+    fun replayCurrent()
 }

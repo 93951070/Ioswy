@@ -14,6 +14,7 @@ import me.wcy.music.service.PlayerController
 import me.wcy.music.utils.toMediaItem
 import me.wcy.router.CRouter
 import me.wcy.router.annotation.Route
+import top.wangchenyan.common.ext.toast
 import javax.inject.Inject
 
 /**
@@ -41,9 +42,8 @@ class DjDetailFragment : BaseMusicFragment() {
                         viewModel = viewModel,
                         rid = id,
                         onBack = { finish() },
-                        onPlaySong = { song ->
-                            playSong(song)
-                        }
+                        onPlaySongs = { songs, index -> playSongs(songs, index) },
+                        onMessage = { toast(it) }
                     )
                 }
             }
@@ -51,10 +51,11 @@ class DjDetailFragment : BaseMusicFragment() {
         }
     }
 
-    private fun playSong(song: SongData) {
-        if (song.id <= 0) return
-        val mediaItem = song.toMediaItem()
-        playerController.replaceAll(listOf(mediaItem), mediaItem)
+    private fun playSongs(songs: List<SongData>, index: Int) {
+        val items = songs.filter { it.id > 0 }.map { it.toMediaItem() }
+        if (items.isEmpty()) return
+        val start = index.coerceIn(items.indices)
+        playerController.replaceAll(items, items[start])
         CRouter.with(requireContext()).url(RoutePath.PLAYING).start()
     }
 }

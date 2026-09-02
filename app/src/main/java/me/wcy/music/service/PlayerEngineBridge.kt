@@ -73,4 +73,14 @@ class PlayerEngineBridge @Inject constructor(
         val controller = pc.mediaController
         controller.addMediaItem(controller.currentMediaItemIndex + 1, song.toMediaItem())
     }
+
+    override fun replayCurrent() {
+        val controller = pc.mediaController
+        val item = controller.currentMediaItem ?: return
+        val position = controller.currentPosition
+        // 替换当前 MediaItem 触发重新解析 url（DataSource 按最新音质设置取流）
+        controller.replaceMediaItem(controller.currentMediaItemIndex, item)
+        controller.seekTo(position)
+        controller.prepare()
+    }
 }

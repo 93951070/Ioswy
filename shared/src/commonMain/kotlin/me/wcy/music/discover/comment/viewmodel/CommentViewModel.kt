@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.wcy.music.discover.comment.EmptyMyCommentStore
 import me.wcy.music.discover.comment.MyCommentStore
+import me.wcy.music.discover.comment.bean.CommentData
 import me.wcy.music.discover.comment.bean.CommentItem
 import me.wcy.music.shared.net.DiscoverNet
 
@@ -30,7 +31,17 @@ class CommentViewModel(
     private var songId = 0L
     private var page = 0
 
-    fun init(id: Long) {
+    /** 电台评论走 comment/dj，歌曲评论走 comment/music */
+    private var fetchComment: suspend (Long, Int, Int) -> CommentData =
+        { id, limit, offset -> DiscoverNet.getCommentMusic(id, limit, offset) }
+
+    fun init(id: Long, dj: Boolean = false) {
+        fetchComment =
+            if (dj) {
+                { i, l, o -> DiscoverNet.getCommentDj(i, l, o) }
+            } else {
+                { i, l, o -> DiscoverNet.getCommentMusic(i, l, o) }
+            }
         if (songId == id && _comments.value.isNotEmpty()) return
         songId = id
         page = 0
@@ -45,7 +56,7 @@ class CommentViewModel(
         _loading.value = true
         viewModelScope.launch {
             kotlin.runCatching {
-                DiscoverNet.getCommentMusic(songId, PAGE_SIZE, page * PAGE_SIZE)
+                fetchComment(songId, PAGE_SIZE, page * PAGE_SIZE)
             }.onSuccess {
                 if (it.code == 200) {
                     _total.value = it.total

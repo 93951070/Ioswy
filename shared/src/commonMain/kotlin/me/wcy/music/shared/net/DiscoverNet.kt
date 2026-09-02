@@ -106,7 +106,8 @@ object DiscoverNet {
     }
 
     suspend fun getRankingList(): PlaylistListData {
-        return SharedJson.decodeBean(SharedNet.post("toplist"))
+        val raw: PlaylistListData = SharedJson.decodeBean(SharedNet.post("toplist"))
+        return raw.copy(playlists = raw.playlists + raw.list)
     }
 
     suspend fun getBannerList(): BannerListData {
@@ -142,6 +143,22 @@ object DiscoverNet {
     ): CommentData {
         return SharedJson.decodeBean(SharedNet.get(
                 "comment/music",
+                params = listOf(
+                    "id" to id,
+                    "limit" to limit,
+                    "offset" to offset
+                )
+            )
+        )
+    }
+
+    suspend fun getCommentDj(
+        id: Long,
+        limit: Int = 30,
+        offset: Int = 0,
+    ): CommentData {
+        return SharedJson.decodeBean(SharedNet.get(
+                "comment/dj",
                 params = listOf(
                     "id" to id,
                     "limit" to limit,

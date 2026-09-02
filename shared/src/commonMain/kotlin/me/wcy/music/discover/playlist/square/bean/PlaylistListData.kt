@@ -13,4 +13,7 @@ data class PlaylistListData(
     val code: Int = 0,
     @SerialName("playlists")
     val playlists: List<PlaylistData> = emptyList(),
+    // /toplist 顶层键是 list，/top/playlist 是 playlists，两键互斥
+    @SerialName("list")
+    val list: List<PlaylistData> = emptyList(),
 )

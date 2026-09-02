@@ -356,6 +356,10 @@ fun IosRoot() {
                         },
                         onOpenSettings = { push(IosPage.Settings) },
                         onOpenTimer = { showTimerDialog = true },
+                        onOpenMsgCenter = {
+                            scope.launch { drawerState.close() }
+                            push(IosPage.MsgCenter)
+                        },
                         onMessage = ::toast
                     )
                 }
@@ -562,7 +566,8 @@ fun IosRoot() {
                             viewModel = vm,
                             rid = page.rid,
                             onBack = { pop() },
-                            onPlaySong = { song -> engine.playSongList(listOf(song), 0) }
+                            onPlaySongs = { songs, index -> engine.playSongList(songs, index) },
+                            onMessage = onMessage
                         )
                     }
                     IosPage.NewSong -> {
@@ -869,6 +874,12 @@ private fun PlayingPage(
     var lrcContent by remember { mutableStateOf("") }
     var lrcLabel by remember { mutableStateOf("歌词加载中…") }
     var menuSong by remember { mutableStateOf<SongData?>(null) }
+    var playQuality by remember {
+        mutableStateOf(
+            NSUserDefaults.standardUserDefaults.stringForKey(IosPlayerEngine.PLAY_QUALITY_KEY)
+                ?: IosPlayerEngine.PLAY_LEVEL
+        )
+    }
 
     LaunchedEffect(currentSong?.id) {
         val songId = currentSong?.id ?: return@LaunchedEffect
@@ -894,6 +905,12 @@ private fun PlayingPage(
         onOpenMenu = { song, _ -> menuSong = song },
         onDownload = { onMessage("敬请期待") },
         onMessage = onMessage,
+        soundQuality = playQuality,
+        onSelectQuality = { level ->
+            NSUserDefaults.standardUserDefaults.setObject(level, forKey = IosPlayerEngine.PLAY_QUALITY_KEY)
+            playQuality = level
+            engine.replayCurrent()
+        },
         lrcContent = lrcContent,
         onUpdateLrc = {},
         lrcLabel = lrcLabel
@@ -1060,6 +1077,7 @@ private fun IosDrawerContent(
     onOpenDomainSettings: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenTimer: () -> Unit,
+    onOpenMsgCenter: () -> Unit,
     onMessage: (String) -> Unit
 ) {
     val profile by session.profile.collectAsState()
@@ -1121,16 +1139,7 @@ private fun IosDrawerContent(
             onClose(); onOpenTimer()
         }
         IosMenuRow(Icons.Filled.Email, "我的消息") {
-            onClose(); onMessage("功能开发中")
-        }
-        IosMenuRow(Icons.Filled.ShoppingCart, "云贝商城") {
-            onClose(); onMessage("功能开发中")
-        }
-        IosMenuRow(Icons.Filled.Info, "我的等级") {
-            onClose(); onMessage("功能开发中")
-        }
-        IosMenuRow(Icons.Filled.Star, "会员中心") {
-            onClose(); onMessage("功能开发中")
+            onClose(); onOpenMsgCenter()
         }
         if (profile != null) {
             IosMenuRow(Icons.Filled.ExitToApp, "退出登录") {

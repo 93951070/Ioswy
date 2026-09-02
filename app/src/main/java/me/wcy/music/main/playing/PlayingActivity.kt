@@ -110,6 +110,14 @@ class PlayingActivity : BaseMusicActivity() {
                     onOpenMenu = { song, songId -> showSongMenu(song, songId) },
                     onDownload = { toast("敬请期待") },
                     onMessage = { toast(it) },
+                    soundQuality = ConfigPreferences.playSoundQuality,
+                    onSelectQuality = { level ->
+                        if (level != ConfigPreferences.playSoundQuality) {
+                            ConfigPreferences.playSoundQuality = level
+                            playerEngine.replayCurrent()
+                            toast("音质已切换")
+                        }
+                    },
                     lrcContent = content,
                     onUpdateLrc = {},
                     lrcLabel = label

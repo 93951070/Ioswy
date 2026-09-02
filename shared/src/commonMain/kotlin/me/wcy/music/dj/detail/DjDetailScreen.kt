@@ -12,11 +12,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,25 +40,31 @@ import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.theme.AppThemeColor
+import me.wcy.music.compose.ui.CommentPanel
 import me.wcy.music.compose.ui.TitleBar
+import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.dj.bean.DjProgramData
 import me.wcy.music.dj.bean.DjRadioData
 import me.wcy.music.dj.detail.viewmodel.DjDetailViewModel
 import me.wcy.music.dj.formatDuration
 import me.wcy.music.shared.util.formatPlayCount
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DjDetailScreen(
     viewModel: DjDetailViewModel,
     rid: Long,
     onBack: () -> Unit,
-    onPlaySong: (SongData) -> Unit
+    onPlaySongs: (List<SongData>, Int) -> Unit,
+    onMessage: (String) -> Unit = {}
 ) {
     val radio by viewModel.radio.collectAsState()
     val programs by viewModel.programs.collectAsState()
     val hasMore by viewModel.hasMore.collectAsState()
     val scope = rememberCoroutineScope()
     var subed by remember { mutableStateOf(false) }
+    var showCommentSheet by remember { mutableStateOf(false) }
+    val commentViewModel = remember { CommentViewModel() }
 
     LaunchedEffect(rid) {
         viewModel.load(rid)
@@ -110,10 +121,34 @@ fun DjDetailScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
-            items(programs.size) { index ->
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showCommentSheet = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = "评论",
+                        tint = AppThemeColor.TextH2,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "评论",
+                        color = AppThemeColor.TextH1,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(start = 10.dp)
+                    )
+                }
+            }
+            itemsIndexed(programs) { index, program ->
                 ProgramRow(
-                    program = programs[index],
-                    onPlaySong = onPlaySong
+                    program = program,
+                    programSongs = programs.map { it.mainSong },
+                    index = index,
+                    onPlaySongs = onPlaySongs
                 )
             }
             if (hasMore) {
@@ -132,6 +167,21 @@ fun DjDetailScreen(
                     )
                 }
             }
+        }
+    }
+
+    if (showCommentSheet) {
+        LaunchedEffect(rid) {
+            // 电台评论走 comment/dj，与歌曲评论区分
+            commentViewModel.init(rid, dj = true)
+            commentViewModel.loadMore()
+        }
+        ModalBottomSheet(
+            onDismissRequest = { showCommentSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White
+        ) {
+            CommentPanel(commentViewModel, onMessage)
         }
     }
 }
@@ -223,13 +273,15 @@ private fun RadioHeader(
 @Composable
 private fun ProgramRow(
     program: DjProgramData,
-    onPlaySong: (SongData) -> Unit
+    programSongs: List<SongData>,
+    index: Int,
+    onPlaySongs: (List<SongData>, Int) -> Unit
 ) {
     val song = program.mainSong
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = song.id > 0) { onPlaySong(song) }
+            .clickable(enabled = song.id > 0) { onPlaySongs(programSongs, index) }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -265,7 +317,7 @@ private fun ProgramRow(
             tint = AppThemeColor.ThemeColor,
             modifier = Modifier
                 .size(28.dp)
-                .clickable(enabled = song.id > 0) { onPlaySong(song) }
+                .clickable(enabled = song.id > 0) { onPlaySongs(programSongs, index) }
         )
     }
 }

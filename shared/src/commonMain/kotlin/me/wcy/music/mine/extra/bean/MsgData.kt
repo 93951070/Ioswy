@@ -2,6 +2,9 @@ package me.wcy.music.mine.extra.bean
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.wcy.music.common.bean.SharedJson
 
 /**
  * msg/private、msg/comments、msg/notices 三接口的消息条目。
@@ -45,11 +48,21 @@ data class MsgItem(
     val createTime: Long = 0
 ) {
     fun message(): String {
-        return lastMsg.ifBlank {
+        return parseLastMsg().ifBlank {
             noticeMsg.ifBlank {
                 notice.ifBlank { comment?.content ?: "" }
             }
         }
+    }
+
+    // 私信 lastMsg 是 JSON 串（{"msg":"内容",...}），需解析取正文
+    private fun parseLastMsg(): String = if (lastMsg.startsWith("{")) {
+        runCatching {
+            SharedJson.parseToJsonElement(lastMsg).jsonObject["msg"]
+                ?.jsonPrimitive?.content ?: lastMsg
+        }.getOrDefault(lastMsg)
+    } else {
+        lastMsg
     }
 
     fun timestamp(): Long = if (createTime > 0) createTime else time

@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.DeleteSweep
@@ -93,6 +94,8 @@ fun PlayingScreen(
     onOpenMenu: (SongData, Long) -> Unit,
     onDownload: () -> Unit,
     onMessage: (String) -> Unit,
+    soundQuality: String,
+    onSelectQuality: (String) -> Unit,
     lrcContent: String,
     onUpdateLrc: (Long) -> Unit,
     lrcLabel: String
@@ -113,6 +116,7 @@ fun PlayingScreen(
     var showCover by remember { mutableStateOf(true) }
     var showPlaylistSheet by remember { mutableStateOf(false) }
     var showCommentSheet by remember { mutableStateOf(false) }
+    var showQualitySheet by remember { mutableStateOf(false) }
     var commentSongId by remember { mutableStateOf(0L) }
     var commentCount by remember { mutableStateOf(0L) }
 
@@ -179,6 +183,16 @@ fun PlayingScreen(
                         maxLines = 1
                     )
                 }
+                Text(
+                    text = qualityLabel(soundQuality),
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                        .clickable { showQualitySheet = true }
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
                 Icon(
                     imageVector = Icons.Filled.Share,
                     contentDescription = "分享",
@@ -283,6 +297,49 @@ fun PlayingScreen(
             containerColor = Color.White
         ) {
             CommentPanel(commentViewModel, onMessage)
+        }
+    }
+
+    if (showQualitySheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showQualitySheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp)
+            ) {
+                QUALITY_LEVELS.forEach { (level, label) ->
+                    val checked = level == soundQuality
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showQualitySheet = false
+                                if (!checked) onSelectQuality(level)
+                            }
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (checked) Red500 else AppThemeColor.TextH1,
+                            fontSize = 15.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (checked) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = "已选",
+                                tint = Red500,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -678,6 +735,17 @@ private fun formatTime(milli: Long): String {
     val s = (milli / 1000 % 60).toString().padStart(2, '0')
     return "$m:$s"
 }
+
+private val QUALITY_LEVELS = listOf(
+    "standard" to "标准",
+    "higher" to "较高",
+    "exhigh" to "极高",
+    "lossless" to "无损",
+    "hires" to "Hi-Res"
+)
+
+private fun qualityLabel(level: String): String =
+    QUALITY_LEVELS.firstOrNull { it.first == level }?.second ?: "标准"
 
 private fun formatCommentCount(count: Long): String {
     return if (count >= 1000) "999+" else count.toString()

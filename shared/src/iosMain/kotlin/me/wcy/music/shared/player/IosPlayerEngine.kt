@@ -19,6 +19,7 @@ import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
+import platform.Foundation.NSUserDefaults
 import platform.darwin.NSObjectProtocol
 import platform.darwin.dispatch_get_main_queue
 
@@ -58,6 +59,9 @@ class IosPlayerEngine : PlayerEngine {
     private val localPaths = mutableMapOf<Long, String>()
 
     private var endObserver: NSObjectProtocol? = null
+
+    /** 连续取流失败计数，超过队列长度自动停，防止空队列循环 advance */
+    private var resolveFailCount = 0
 
     init {
         // 播放类别：静音开关下仍出声；后台播放还需 Info.plist UIBackgroundModes audio（iosApp 已配置）
@@ -199,8 +203,15 @@ class IosPlayerEngine : PlayerEngine {
             if (_currentSong.value !== song) return@launch
             if (path.isNullOrEmpty()) {
                 _bufferingPercent.value = 0
+                // 取不到流地址自动跳下一首，超过队列长度自动停
+                if (++resolveFailCount < _playlist.value.size) {
+                    advance(1)
+                } else {
+                    resolveFailCount = 0
+                }
                 return@launch
             }
+            resolveFailCount = 0
             val nsUrl = if (path.startsWith("/")) {
                 NSURL.fileURLWithPath(path)
             } else {
@@ -214,13 +225,21 @@ class IosPlayerEngine : PlayerEngine {
     private suspend fun resolveUri(song: SongData): String? {
         localPaths[song.id]?.let { return it }
         if (song.id <= 0) return null
-        val primary = apiCall { DiscoverNet.getSongUrl(song.id, PLAY_LEVEL) }
+        val level = NSUserDefaults.standardUserDefaults.stringForKey(PLAY_QUALITY_KEY)
+            ?: PLAY_LEVEL
+        val primary = apiCall { DiscoverNet.getSongUrl(song.id, level) }
         val primaryUrl = primary.takeIf { it.isSuccessWithData() }?.data?.firstOrNull()?.url
         if (!primaryUrl.isNullOrEmpty()) return primaryUrl
         // 部分歌曲高音质档返回空 url，降级 standard 再试一次
         val fallback = apiCall { DiscoverNet.getSongUrl(song.id, LEVEL_STANDARD) }
         return fallback.takeIf { it.isSuccessWithData() }?.data?.firstOrNull()?.url
             ?.takeUnless { it.isEmpty() }
+    }
+
+    /** 按当前音质设置重取 url 播当前歌（音质切换入口） */
+    override fun replayCurrent() {
+        resolveFailCount = 0
+        if (_playlist.value.isNotEmpty() && currentIndex >= 0) startCurrent()
     }
 
     private fun stopAndClear() {
@@ -237,6 +256,7 @@ class IosPlayerEngine : PlayerEngine {
     companion object {
         const val PLAY_LEVEL = "exhigh"
         const val LEVEL_STANDARD = "standard"
+        const val PLAY_QUALITY_KEY = "ios_play_quality"
         const val PLAY_MODE_LOOP = 0
         const val PLAY_MODE_SHUFFLE = 1
         const val PLAY_MODE_SINGLE = 2
