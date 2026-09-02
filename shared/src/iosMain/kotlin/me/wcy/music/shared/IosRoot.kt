@@ -43,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,6 +55,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.graphics.painter.Painter
+import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.account.login.phone.PhoneLoginViewModel
 import me.wcy.music.account.login.qrcode.QrcodeLoginViewModel
@@ -93,47 +94,12 @@ import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.MineNet
 import me.wcy.music.shared.net.apiCall
 import me.wcy.music.shared.player.IosPlayerEngine
-import org.jetbrains.skia.Image
-import org.jetbrains.skia.image.toComposeImageBitmap
-import platform.CoreGraphics.*
-import platform.CoreImage.*
-import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
-import platform.UIKit.*
-import platform.posix.memcpy
 
 private enum class IosTab(val label: String) {
     Discover("发现"),
     Mine("我的")
-}
-
-/** iOS 端二维码位图：CIFilter(qrCodeGenerator) -> CGImage -> PNG -> Skia ImageBitmap */
-@OptIn(ExperimentalForeignApi::class)
-private fun generateQrBitmap(content: String): ImageBitmap? = runCatching {
-    val filter = CIFilter.qrCodeGenerator()
-    filter.message = content.encodeToByteArray().toNSData()
-    val output = filter.outputImage
-        ?.imageByApplyingTransform(CGAffineTransformMakeScale(10.0, 10.0))
-        ?: return@runCatching null
-    val context = CIContext()
-    val cgImage = context.createCGImage(output, fromRect = output.extent)
-        ?: return@runCatching null
-    val pngData = UIImage(cgImage = cgImage).PNGData() ?: return@runCatching null
-    Image.makeFromEncoded(pngData.toKotlinBytes()).toComposeImageBitmap()
-}.getOrNull()
-
-@OptIn(ExperimentalForeignApi::class)
-private fun ByteArray.toNSData(): NSData =
-    usePinned { pinned -> NSData.create(bytes = pinned.addressOf(0), length = size.toULong()) }
-
-@OptIn(ExperimentalForeignApi::class)
-private fun NSData.toKotlinBytes(): ByteArray {
-    val size = length.toInt()
-    if (size <= 0) return ByteArray(0)
-    val dst = ByteArray(size)
-    dst.usePinned { pinned -> memcpy(pinned.addressOf(0), bytes, size.toULong()) }
-    return dst
 }
 
 /** 简单页栈：只允许栈顶页面参与组合，backStack 空时显示首页 3 tab */
@@ -651,14 +617,12 @@ private fun LoginPage(
     var showQrcode by remember { mutableStateOf(false) }
     if (showQrcode) {
         val viewModel = remember { QrcodeLoginViewModel(session) }
-        var qrCodeImage by remember { mutableStateOf<ImageBitmap?>(null) }
         val qrUrl by viewModel.qrUrl.collectAsState()
-        LaunchedEffect(qrUrl) {
-            qrCodeImage = withContext(Dispatchers.Default) { qrUrl?.let { generateQrBitmap(it) } }
-        }
+        val qrPainter: Painter? = if (qrUrl.isNullOrEmpty()) null else rememberQrCodePainter(qrUrl)
         QrcodeLoginScreen(
             viewModel = viewModel,
-            qrCodeImage = qrCodeImage,
+            qrCodeImage = null,
+            qrPainter = qrPainter,
             onLoginSuccess = onLoginSuccess,
             onSwitchPhone = { showQrcode = false },
             onMessage = onMessage,

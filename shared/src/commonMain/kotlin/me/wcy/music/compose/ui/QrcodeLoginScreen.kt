@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.wcy.music.account.bean.LoginResultData
@@ -33,7 +34,8 @@ fun QrcodeLoginScreen(
     onLoginSuccess: () -> Unit = {},
     onSwitchPhone: () -> Unit,
     onMessage: (String) -> Unit,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    qrPainter: Painter? = null
 ) {
     val status by viewModel.loginStatus.collectAsState()
     var handledSuccess by remember { mutableStateOf(false) }
@@ -71,6 +73,16 @@ fun QrcodeLoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
         Text(text = "扫码登录", color = AppThemeColor.TextH1, fontSize = 22.sp)
+        if (qrPainter != null) {
+            Image(
+                painter = qrPainter,
+                contentDescription = "二维码",
+                modifier = Modifier
+                    .padding(top = 24.dp)
+                    .size(200.dp)
+                    .background(AppThemeColor.ThemeColor.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            )
+        }
         qrCodeImage?.let { bitmap ->
             Image(
                 bitmap = bitmap,

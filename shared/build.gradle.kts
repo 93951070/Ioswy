@@ -44,6 +44,7 @@ kotlin {
         iosMain.dependencies {
             implementation(libs.coil3.network.ktor3)
             implementation(libs.ktor.client.darwin)
+            implementation("io.github.alexzhirkevich:qrose:1.0.1")
         }
     }
 }
