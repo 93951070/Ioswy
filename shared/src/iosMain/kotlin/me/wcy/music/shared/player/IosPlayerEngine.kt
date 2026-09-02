@@ -12,14 +12,8 @@ import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.apiCall
-import platform.AVFAudio.AVAudioSession
-import platform.AVFAudio.AVAudioSessionCategoryPlayback
-import platform.AVFoundation.AVPlayer
-import platform.AVFoundation.AVPlayerItem
-import platform.AVFoundation.AVPlayerItemDidPlayToEndTimeNotification
-import platform.AVFoundation.AVPlayerItemStatusFailed
-import platform.AVFoundation.AVPlayerItemStatusReadyToPlay
-import platform.AVFoundation.AVPlayerTimeControlStatusPlaying
+import platform.AVFAudio.*
+import platform.AVFoundation.*
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
