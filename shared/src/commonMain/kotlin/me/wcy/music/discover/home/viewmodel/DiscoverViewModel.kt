@@ -50,6 +50,15 @@ class DiscoverViewModel(
         loadRankingList()
     }
 
+    /** 接口域名变更后由壳层调用，强制重新拉取发现页数据 */
+    fun refresh() {
+        loadBanner()
+        loadRankingList()
+        if (profileFlow.value != null && hasApiDomain()) {
+            loadRecommendPlaylist()
+        }
+    }
+
     private fun loadCache() {
         viewModelScope.launch {
             val banners = cache?.getBanners() ?: return@launch

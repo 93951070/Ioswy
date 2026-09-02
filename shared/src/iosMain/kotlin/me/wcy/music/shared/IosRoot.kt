@@ -476,10 +476,17 @@ fun IosRoot() {
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        val domain = domainInput.trim().trimEnd('/')
+                        var domain = domainInput.trim().trimEnd('/')
+                        if (domain.isNotEmpty() &&
+                            !domain.startsWith("http://") &&
+                            !domain.startsWith("https://")
+                        ) {
+                            domain = "https://$domain"
+                        }
                         saveApiDomain(domain)
                         SharedNet.baseUrl = domain.ifEmpty { DEFAULT_BASE_URL }
                         showDomainDialog = false
+                        discoverViewModel.refresh()
                         toast("接口设置已保存")
                     }) { Text("保存", color = AppThemeColor.ThemeColor) }
                 },
