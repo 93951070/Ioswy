@@ -51,7 +51,7 @@ object SharedNet {
     var baseUrl: String = DEFAULT_BASE_URL
     var cookie: String = ""
 
-    private val client by lazy {
+    val client by lazy {
         HttpClient {
             expectSuccess = false
             install(ContentNegotiation) {

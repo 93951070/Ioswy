@@ -17,14 +17,12 @@ import platform.AVFoundation.*
 import platform.CoreGraphics.CGSizeMake
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMakeWithSeconds
-import platform.Foundation.NSData
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSNumber
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDefaults
 import platform.MediaPlayer.*
-import platform.UIKit.UIImage
 import platform.darwin.NSObjectProtocol
 import platform.darwin.dispatch_get_main_queue
 
@@ -74,7 +72,6 @@ class IosPlayerEngine : PlayerEngine {
     private var resolveFailCount = 0
 
     /** 已拉取封面的歌曲 id，避免 0.5s 周期回调期间重复下载封面 */
-    private var artworkSongId = 0L
 
     init {
         // 播放类别：静音开关下仍出声；后台播放还需 Info.plist UIBackgroundModes audio（iosApp 已配置）
@@ -266,7 +263,6 @@ class IosPlayerEngine : PlayerEngine {
         _playProgress.value = 0
         _bufferingPercent.value = 100
         updateNowPlaying()
-        loadArtworkAsync(song)
         scope.launch {
             val path = resolveUri(song)
             // 异步取 url 期间用户可能已切歌，过期结果直接丢弃
@@ -322,44 +318,25 @@ class IosPlayerEngine : PlayerEngine {
         _playProgress.value = 0
         _bufferingPercent.value = 0
         MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = null
-        artworkSongId = 0
     }
 
-    /** 锁屏/控制中心元数据：歌名、歌手、时长、进度、播放速率（[artwork] 异步拉到后补挂） */
-    private fun updateNowPlaying(artwork: UIImage? = null) {
+    /** 锁屏/控制中心元数据：歌名、歌手、时长、进度、播放速率 */
+    // ponytail: 封面 Artwork 暂缓，Foundation 无可直接用的图片下载 API，后续用 Ktor 拉字节再 UIImage 解码
+    private fun updateNowPlaying() {
         val song = _currentSong.value ?: return
         if (song.id <= 0) {
             MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = null
             return
         }
         val elapsed = currentElapsedSeconds()
-        var info: Map<Any?, Any?> = mapOf<Any?, Any?>(
+        val info: Map<Any?, Any?> = mapOf<Any?, Any?>(
             MPMediaItemPropertyTitle to song.name,
             MPMediaItemPropertyArtist to song.ar.joinToString("/") { it.name },
             MPMediaItemPropertyPlaybackDuration to NSNumber(song.dt / 1000.0),
             MPNowPlayingInfoPropertyElapsedPlaybackTime to NSNumber(elapsed),
             MPNowPlayingInfoPropertyPlaybackRate to NSNumber(if (_isPlaying.value) 1.0 else 0.0)
         )
-        if (artwork != null) {
-            val bounds = artwork.size.useContents { CGSizeMake(width, height) }
-            info = info + mapOf<Any?, Any?>(
-                MPMediaItemPropertyArtwork to MPMediaItemArtwork(boundsSize = bounds) { _ -> artwork }
-            )
-        }
         MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = info
-    }
-
-    /** 异步拉封面大图，成功后回主线程补进 nowPlayingInfo；同歌只拉一次 */
-    private fun loadArtworkAsync(song: SongData) {
-        if (song.id == artworkSongId) return
-        artworkSongId = song.id
-        val nsUrl = NSURL.URLWithString(song.al.getLargeCover()) ?: return
-        scope.launch(Dispatchers.Default) {
-            val data = NSData.create(contentsOfURL = nsUrl) ?: return@launch
-            // ponytail: UIImage(data:) 为 failable init，K/N nullability 有历史歧义，交由 updateNowPlaying 的可空参数兜底
-            val image = UIImage(data = data)
-            scope.launch(Dispatchers.Main) { updateNowPlaying(image) }
-        }
     }
 
     private fun currentElapsedSeconds(): Double {

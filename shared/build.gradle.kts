@@ -37,6 +37,8 @@ kotlin {
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.kotlinx.datetime)
+            // 下载落盘用（Ktor 3.0.3 传递版本一致）
+            implementation("org.jetbrains.kotlinx:kotlinx-io-core:0.5.4")
         }
         androidMain.dependencies {
             implementation(libs.coil3.network.okhttp)
