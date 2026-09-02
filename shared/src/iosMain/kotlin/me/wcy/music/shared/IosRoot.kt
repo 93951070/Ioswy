@@ -618,7 +618,8 @@ private fun LoginPage(
     if (showQrcode) {
         val viewModel = remember { QrcodeLoginViewModel(session) }
         val qrUrl by viewModel.qrUrl.collectAsState()
-        val qrPainter: Painter? = if (qrUrl.isNullOrEmpty()) null else rememberQrCodePainter(qrUrl)
+        val qrContent: String? = qrUrl
+        val qrPainter: Painter? = if (qrContent.isNullOrEmpty()) null else rememberQrCodePainter(qrContent)
         QrcodeLoginScreen(
             viewModel = viewModel,
             qrCodeImage = null,
