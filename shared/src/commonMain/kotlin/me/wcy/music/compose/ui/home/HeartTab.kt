@@ -75,6 +75,7 @@ private const val PHASE_FAIL = 4
  */
 private val heartPhase = mutableStateOf(PHASE_INIT)
 private var heartEmptyMessage = ""
+private var heartFailMessage = ""
 
 /**
  * 心动 tab：直接是播放器页面（仿网易云心动模式）。
@@ -109,7 +110,10 @@ fun HeartTab(
             .background(Color.Black)
     ) {
         when {
-            phase == PHASE_FAIL -> HeartStateView("心动模式加载失败，请稍后重试", "重试") {
+            phase == PHASE_FAIL -> HeartStateView(
+                "心动模式加载失败" + if (heartFailMessage.isNotBlank()) "\n$heartFailMessage" else "，请稍后重试",
+                "重试"
+            ) {
                 scope.launch {
                     heartPhase.value = PHASE_INIT
                     initHeart(playerEngine, onPlayQueue)
@@ -169,9 +173,11 @@ private suspend fun initHeart(
             onPlayQueue(queue, 0)
             heartPhase.value = PHASE_READY
         } else {
+            heartFailMessage = "接口返回 code=${res.code}, 队列=${queue.size}首"
             heartPhase.value = PHASE_FAIL
         }
     }.onFailure {
+        heartFailMessage = it.message?.take(80) ?: it::class.simpleName ?: "网络异常"
         heartPhase.value = PHASE_FAIL
     }
 }

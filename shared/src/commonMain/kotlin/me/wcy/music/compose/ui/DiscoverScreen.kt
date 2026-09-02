@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -29,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -77,8 +79,13 @@ fun DiscoverScreen(
     val pagerState = rememberPagerState(pageCount = { HOME_TABS.size })
     val scope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(if (pagerState.currentPage == 0) Color.Black else AppThemeColor.Background)
+    ) {
         HomeTitleBar(
+            dark = pagerState.currentPage == 0,
             onOpenDrawer = onOpenDrawer,
             onOpenSearch = onOpenSearch
         )
@@ -86,6 +93,7 @@ fun DiscoverScreen(
         HomeTabRow(
             tabs = HOME_TABS,
             selected = pagerState.currentPage,
+            dark = pagerState.currentPage == 0,
             onSelect = { index ->
                 scope.launch {
                     pagerState.animateScrollToPage(index)
@@ -138,22 +146,26 @@ fun DiscoverScreen(
     }
 }
 
-/** 标题行：汉堡菜单 + 「首页」标题 + 搜索按钮 */
+/** 标题行：汉堡菜单 + 「首页」标题 + 搜索按钮；dark=心动 tab 沉浸黑 */
 @Composable
 private fun HomeTitleBar(
+    dark: Boolean,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit
 ) {
+    val contentColor = if (dark) Color.White else AppThemeColor.TextH1
+    val subColor = if (dark) Color.White.copy(alpha = 0.7f) else AppThemeColor.TextH2
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Filled.Menu,
             contentDescription = "菜单",
-            tint = AppThemeColor.TextH1,
+            tint = contentColor,
             modifier = Modifier
                 .size(28.dp)
                 .clickable(onClick = onOpenDrawer)
@@ -161,7 +173,7 @@ private fun HomeTitleBar(
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = "首页",
-            color = AppThemeColor.TextH1,
+            color = contentColor,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.weight(1f)
@@ -170,25 +182,28 @@ private fun HomeTitleBar(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(AppThemeColor.SearchBar)
+                .background(
+                    if (dark) Color.White.copy(alpha = 0.15f) else AppThemeColor.SearchBar
+                )
                 .clickable(onClick = onOpenSearch),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.Search,
                 contentDescription = "搜索",
-                tint = AppThemeColor.TextH2,
+                tint = subColor,
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
-/** 顶部文字 tab，选中高亮 + 下划线 */
+/** 顶部文字 tab，选中高亮 + 下划线；dark=心动 tab 沉浸黑 */
 @Composable
 private fun HomeTabRow(
     tabs: List<String>,
     selected: Int,
+    dark: Boolean,
     onSelect: (Int) -> Unit
 ) {
     Row(
@@ -208,7 +223,11 @@ private fun HomeTabRow(
             ) {
                 Text(
                     text = title,
-                    color = if (isSelected) AppThemeColor.ThemeColor else AppThemeColor.TextH2,
+                    color = when {
+                        isSelected -> AppThemeColor.ThemeColor
+                        dark -> Color.White.copy(alpha = 0.7f)
+                        else -> AppThemeColor.TextH2
+                    },
                     fontSize = 16.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )

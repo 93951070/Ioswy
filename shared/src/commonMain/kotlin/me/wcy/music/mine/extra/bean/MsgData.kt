@@ -50,6 +50,9 @@ data class MsgItem(
     val fromUser: MsgUser? = null,
     @SerialName("lastMsg")
     val lastMsg: String = "",
+    // msg/private/history 的正文在 msg 字段（JSON 串），列表接口在 lastMsg
+    @SerialName("msg")
+    val msg: String = "",
     @SerialName("noticeMsg")
     val noticeMsg: String = "",
     @SerialName("notice")
@@ -62,21 +65,23 @@ data class MsgItem(
     val createTime: Long = 0
 ) {
     fun message(): String {
-        return parseLastMsg().ifBlank {
-            noticeMsg.ifBlank {
-                notice.ifBlank { comment?.content ?: "" }
+        return parseJsonMsg(lastMsg).ifBlank {
+            parseJsonMsg(msg).ifBlank {
+                noticeMsg.ifBlank {
+                    notice.ifBlank { comment?.content ?: "" }
+                }
             }
         }
     }
 
-    // 私信 lastMsg 是 JSON 串（{"msg":"内容",...}），需解析取正文
-    private fun parseLastMsg(): String = if (lastMsg.startsWith("{")) {
+    // 私信正文是 JSON 串（{"msg":"内容",...}），解析取正文；纯文本原样返回
+    private fun parseJsonMsg(raw: String): String = if (raw.startsWith("{")) {
         runCatching {
-            SharedJson.parseToJsonElement(lastMsg).jsonObject["msg"]
-                ?.jsonPrimitive?.content ?: lastMsg
-        }.getOrDefault(lastMsg)
+            SharedJson.parseToJsonElement(raw).jsonObject["msg"]
+                ?.jsonPrimitive?.content ?: raw
+        }.getOrDefault(raw)
     } else {
-        lastMsg
+        raw
     }
 
     /** 会话对方的用户信息（私信用 fromUser，通知类无） */

@@ -11,7 +11,9 @@ struct ComposeView: UIViewControllerRepresentable {
 
 struct ContentView: View {
     var body: some View {
-        // 让 SwiftUI 自动避让灵动岛/状态栏/Home indicator
+        // Compose 铺满全屏（含状态栏/Home indicator 区域），
+        // 安全区由 Compose 内容自行适配，避免全屏黑页面顶部/底部露白
         ComposeView()
+            .ignoresSafeArea()
     }
 }
