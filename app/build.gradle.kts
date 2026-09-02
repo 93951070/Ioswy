@@ -87,8 +87,13 @@ fun getLocalValue(key: String): String {
 }
 
 fun getLocalValue(key: String, quot: Boolean): String {
+    val localFile = project.rootProject.file("local.properties")
+    if (!localFile.exists()) {
+        // CI（无 local.properties）：签名参数用占位符，release 签名仅出正式包时在本地配置
+        return if (quot) "\"\"" else ""
+    }
     val properties = Properties()
-    properties.load(project.rootProject.file("local.properties").inputStream())
+    properties.load(localFile.inputStream())
     var value = if (properties.containsKey(key)) {
         properties[key].toString()
     } else {
