@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -80,42 +81,69 @@ fun MvDetailScreen(
         related = loadRelatedMv(mvid)
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item {
-            TitleBar(title = mv?.name ?: "MV", onBack = onBack)
+    var isFullscreen by remember { mutableStateOf(false) }
+
+    if (isFullscreen) {
+        // 全屏：页面内布局切换，只渲染播放器 + 左上角退出按钮，其余内容不渲染
+        // ponytail: 全屏切换会重建播放器（进度从头播）；要保进度需把 player 提升为跨布局共享状态
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            MvPlayerSurface(
+                url = mvUrl,
+                isFullscreen = true,
+                onToggleFullscreen = { isFullscreen = false },
+                modifier = Modifier.fillMaxSize()
+            )
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = "退出全屏",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(12.dp)
+                    .size(28.dp)
+                    .clickable { isFullscreen = false }
+            )
         }
-        item {
-            // 有地址直接内嵌自动播放，无地址显示封面
-            if (mvUrl.isNotBlank()) {
-                MvPlayerSurface(
-                    url = mvUrl,
-                    modifier = Modifier.fillMaxWidth().height(210.dp).background(Color.Black)
-                )
-            } else {
-                MvPlayerCover(cover = mv?.cover ?: "")
-            }
-        }
-        mv?.let { data ->
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
-                MvInfo(
-                    mv = data,
-                    isSub = isSub,
-                    onCollect = { scope.launch { viewModel.collect() } },
-                    onOpenComment = { showCommentSheet = true }
-                )
+                TitleBar(title = mv?.name ?: "MV", onBack = onBack)
             }
-        }
-        if (related.isNotEmpty()) {
             item {
-                Text(
-                    text = "相关推荐",
-                    color = AppThemeColor.TextH1,
-                    fontSize = 15.sp,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
-                )
+                // 有地址直接内嵌自动播放，无地址显示封面
+                if (mvUrl.isNotBlank()) {
+                    MvPlayerSurface(
+                        url = mvUrl,
+                        isFullscreen = false,
+                        onToggleFullscreen = { isFullscreen = true },
+                        modifier = Modifier.fillMaxWidth().height(210.dp).background(Color.Black)
+                    )
+                } else {
+                    MvPlayerCover(cover = mv?.cover ?: "")
+                }
             }
-            items(related) { data ->
-                RelatedMvRow(item = data, onClick = { onOpenMv(data.id) })
+            mv?.let { data ->
+                item {
+                    MvInfo(
+                        mv = data,
+                        isSub = isSub,
+                        onCollect = { scope.launch { viewModel.collect() } },
+                        onOpenComment = { showCommentSheet = true }
+                    )
+                }
+            }
+            if (related.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "相关推荐",
+                        color = AppThemeColor.TextH1,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp, bottom = 4.dp)
+                    )
+                }
+                items(related) { data ->
+                    RelatedMvRow(item = data, onClick = { onOpenMv(data.id) })
+                }
             }
         }
     }

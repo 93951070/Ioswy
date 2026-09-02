@@ -8,6 +8,7 @@ import me.wcy.music.mv.bean.MvListData
 import me.wcy.music.mv.bean.MvSublistData
 import me.wcy.music.mv.bean.MvUrlData
 import me.wcy.music.mv.bean.NewSongListData
+import me.wcy.music.mv.bean.PersonalizedMvData
 import me.wcy.music.shared.net.NetResult
 import me.wcy.music.shared.net.SharedNet
 
@@ -130,5 +131,9 @@ object MvNet {
                 params = listOf("limit" to limit)
             )
         )
+    }
+
+    suspend fun getPersonalizedMv(): PersonalizedMvData {
+        return SharedJson.decodeBean(SharedNet.get("personalized/mv"))
     }
 }

@@ -8,6 +8,7 @@ import me.wcy.music.common.bean.SongData
 import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
 import me.wcy.music.service.PlayerController
 import me.wcy.music.shared.net.DiscoverNet
+import me.wcy.music.shared.player.PlayerEngine
 import me.wcy.music.utils.toMediaItem
 
 /**
@@ -17,6 +18,7 @@ import me.wcy.music.utils.toMediaItem
 fun DiscoverScreen(
     viewModel: DiscoverViewModel,
     playerController: PlayerController,
+    playerEngine: PlayerEngine,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenPlaylistDetail: (Long) -> Unit,
@@ -29,6 +31,8 @@ fun DiscoverScreen(
     onOpenDj: () -> Unit,
     onOpenMvList: () -> Unit,
     onOpenPlaying: () -> Unit,
+    onOpenDjRadio: (Long) -> Unit = {},
+    onOpenMv: (Long) -> Unit = {},
     onOpenVideo: () -> Unit = {},
     onOpenDjRank: () -> Unit = {}
 ) {
@@ -49,7 +53,10 @@ fun DiscoverScreen(
 
     DiscoverScreen(
         viewModel = viewModel,
+        playerEngine = playerEngine,
         onOpenDrawer = onOpenDrawer,
+        onOpenDjRadio = onOpenDjRadio,
+        onOpenMv = onOpenMv,
         onOpenVideo = onOpenVideo,
         onOpenDjRank = onOpenDjRank,
         onOpenSearch = onOpenSearch,
@@ -72,6 +79,11 @@ fun DiscoverScreen(
         },
         onPlayPlaylistSong = { playlist: PlaylistData, position: Int ->
             playPlaylist(playlist.id, position)
+        },
+        onPlayDailySong = { songs: List<SongData>, index: Int ->
+            // 与 iOS playSongList 对齐：整组替换播放（心动队列/每日推荐都需要完整队列）
+            val items = songs.map { it.toMediaItem() }
+            items.firstOrNull()?.let { playerController.replaceAll(items, items.getOrElse(index) { items[0] }) }
         }
     )
 }

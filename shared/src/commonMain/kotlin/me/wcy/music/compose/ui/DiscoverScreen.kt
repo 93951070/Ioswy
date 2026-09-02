@@ -42,12 +42,14 @@ import me.wcy.music.compose.ui.home.MusicTab
 import me.wcy.music.compose.ui.home.PodcastTab
 import me.wcy.music.compose.ui.home.RecommendTab
 import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
+import me.wcy.music.shared.player.PlayerEngine
 
 private val HOME_TABS = listOf("心动", "推荐", "音乐", "播客", "分类")
 
 @Composable
 fun DiscoverScreen(
     viewModel: DiscoverViewModel,
+    playerEngine: PlayerEngine,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenPlaylistDetail: (Long) -> Unit,
@@ -68,6 +70,7 @@ fun DiscoverScreen(
     },
     onOpenArtist: (Long) -> Unit = {},
     onOpenDjRadio: (Long) -> Unit = {},
+    onOpenMv: (Long) -> Unit = {},
     onOpenVideo: () -> Unit = {},
     onOpenDjRank: () -> Unit = {},
 ) {
@@ -96,24 +99,20 @@ fun DiscoverScreen(
         ) { page ->
             when (page) {
                 0 -> HeartTab(
-                    viewModel = viewModel,
-                    onOpenRecommendSong = onOpenRecommendSong,
-                    onOpenPersonalFm = onOpenPersonalFm,
-                    onOpenPlaylistDetail = onOpenPlaylistDetail,
-                    onPlayPlaylist = onPlayPlaylist,
-                    onPlayDailySong = onPlayDailySong
+                    playerEngine = playerEngine,
+                    onPlayQueue = onPlayDailySong,
+                    onOpenPlaying = onOpenPlaying,
+                    onOpenRecommendSong = onOpenRecommendSong
                 )
                 1 -> RecommendTab(
                     viewModel = viewModel,
                     onPlaySong = onPlaySong,
                     onOpenPlaylistDetail = onOpenPlaylistDetail,
-                    onPlayPlaylist = onPlayPlaylist,
-                    onPlayPlaylistSong = onPlayPlaylistSong,
-                    onOpenArtist = onOpenArtist,
-                    onOpenArtistList = onOpenArtistList,
                     onOpenRanking = onOpenRanking,
                     onOpenPlaylistSquare = onOpenPlaylistSquare,
-                    onOpenDjRadio = onOpenDjRadio
+                    onOpenDjRadio = onOpenDjRadio,
+                    onOpenRecommendSong = onOpenRecommendSong,
+                    onOpenMv = onOpenMv
                 )
                 2 -> MusicTab(
                     onOpenNewSong = onOpenNewSong,

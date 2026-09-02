@@ -406,6 +406,7 @@ fun IosRoot() {
                         when (currentTab) {
                             IosTab.Discover -> DiscoverScreen(
                                 viewModel = discoverViewModel,
+                                playerEngine = engine,
                                 onOpenDrawer = { scope.launch { drawerState.open() } },
                                 onOpenSearch = { push(IosPage.Search) },
                                 onOpenPlaylistDetail = { id ->
@@ -430,6 +431,7 @@ fun IosRoot() {
                                 },
                                 onOpenArtist = { id -> push(IosPage.ArtistDetail(id)) },
                                 onOpenDjRadio = { id -> push(IosPage.DjDetail(id)) },
+                                onOpenMv = { id -> push(IosPage.MvDetail(id)) },
                                 onOpenVideo = { push(IosPage.Video) },
                                 onOpenDjRank = { push(IosPage.DjRank) }
                             )

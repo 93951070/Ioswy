@@ -35,8 +35,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.UIKitView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import kotlinx.coroutines.delay
@@ -63,27 +61,6 @@ private class PlayerContainerView : UIView(frame = CGRectMake(0.0, 0.0, 0.0, 0.0
     }
 }
 
-/**
- * 请求旋转屏幕（iOS16+）：landscapeRight 进全屏，portrait 退出。
- * Info.plist 已声明支持横竖屏。返回是否成功发起请求，失败时调用方降级为竖屏全屏 + 提示。
- * （方法名/参数形式对齐已验证的 KMP 实践：requestGeometryUpdateWithPreferences + errorHandler=null）
- */
-private fun requestInterfaceOrientation(landscape: Boolean): Boolean {
-    return runCatching {
-        val mask = if (landscape) {
-            UIInterfaceOrientationMaskLandscapeRight
-        } else {
-            UIInterfaceOrientationMaskPortrait
-        }
-        val scene = UIApplication.sharedApplication.connectedScenes.firstOrNull() as? UIWindowScene
-        scene?.requestGeometryUpdateWithPreferences(
-            geometryPreferences = UIWindowSceneGeometryPreferencesIOS(interfaceOrientations = mask),
-            errorHandler = null
-        )
-        scene != null
-    }.getOrDefault(false)
-}
-
 /** 秒 -> "mm:ss"（commonMain 禁 String.format，padStart 拼接） */
 private fun formatMvTime(seconds: Float): String {
     val total = if (seconds > 0f) seconds.toInt() else 0
@@ -94,23 +71,20 @@ private fun formatMvTime(seconds: Float): String {
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
-actual fun MvPlayerSurface(url: String, modifier: Modifier) {
-    val player = remember(url) {
-        val p = AVPlayer()
-        val nsUrl = NSURL.URLWithString(url)
-        if (nsUrl != null) {
-            p.replaceCurrentItemWithPlayerItem(AVPlayerItem(nsUrl))
-        }
-        p.play()
-        p
-    }
+actual fun MvPlayerSurface(
+    url: String,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+    modifier: Modifier
+) {
+    // player 实例保持稳定：url 变化走 replaceCurrentItem，避免重建播放器丢状态
+    val player = remember { AVPlayer() }
+    var loadedUrl by remember { mutableStateOf<String?>(null) }
 
     var isPlaying by remember(url) { mutableStateOf(true) }
     var currentTime by remember(url) { mutableFloatStateOf(0f) }
     var duration by remember(url) { mutableFloatStateOf(0f) }
     var showOverlay by remember(url) { mutableStateOf(true) }
-    var fullscreen by remember(url) { mutableStateOf(false) }
-    var showRotateHint by remember(url) { mutableStateOf(false) }
     var dragging by remember(url) { mutableStateOf(false) }
     var dragPos by remember(url) { mutableFloatStateOf(0f) }
 
@@ -160,119 +134,39 @@ actual fun MvPlayerSurface(url: String, modifier: Modifier) {
         }
         dragging = false
     }
-    val enterFullscreen = {
-        val rotated = requestInterfaceOrientation(landscape = true)
-        showRotateHint = !rotated
-        fullscreen = true
-    }
-    val exitFullscreen = {
-        requestInterfaceOrientation(landscape = false)
-        fullscreen = false
-        showRotateHint = false
-    }
 
-    MvVideoContent(
-        player = player,
-        showOverlay = showOverlay,
-        isPlaying = isPlaying,
-        currentTime = currentTime,
-        duration = duration,
-        dragging = dragging,
-        dragPos = dragPos,
-        isFullscreen = false,
-        onToggleOverlay = { showOverlay = !showOverlay },
-        onTogglePlay = togglePlay,
-        onSliderChange = onSliderChange,
-        onSliderFinished = onSliderFinished,
-        onToggleFullscreen = enterFullscreen
-    )
-
-    if (fullscreen) {
-        // 全屏展示：同一 AVPlayer 实例挂到新 layer，播放进度无缝延续
-        Dialog(
-            onDismissRequest = exitFullscreen,
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                MvVideoContent(
-                    player = player,
-                    showOverlay = showOverlay,
-                    isPlaying = isPlaying,
-                    currentTime = currentTime,
-                    duration = duration,
-                    dragging = dragging,
-                    dragPos = dragPos,
-                    isFullscreen = true,
-                    onToggleOverlay = { showOverlay = !showOverlay },
-                    onTogglePlay = togglePlay,
-                    onSliderChange = onSliderChange,
-                    onSliderFinished = onSliderFinished,
-                    onToggleFullscreen = exitFullscreen
-                )
-                if (showRotateHint) {
-                    Text(
-                        text = "请旋转设备",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 60.dp)
-                    )
-                    LaunchedEffect(showRotateHint) {
-                        delay(3000)
-                        showRotateHint = false
-                    }
-                }
-            }
-        }
-    }
-
-    DisposableEffect(url) {
-        onDispose { player.pause() }
-    }
-}
-
-/** 视频画面 + 控制层：内嵌与全屏 Dialog 共用同一套实现 */
-@OptIn(ExperimentalForeignApi::class)
-@Composable
-private fun MvVideoContent(
-    player: AVPlayer,
-    showOverlay: Boolean,
-    isPlaying: Boolean,
-    currentTime: Float,
-    duration: Float,
-    dragging: Boolean,
-    dragPos: Float,
-    isFullscreen: Boolean,
-    onToggleOverlay: () -> Unit,
-    onTogglePlay: () -> Unit,
-    onSliderChange: (Float) -> Unit,
-    onSliderFinished: () -> Unit,
-    onToggleFullscreen: () -> Unit
-) {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = modifier
             .background(Color.Black)
             .pointerInput(player) {
-                detectTapGestures { onToggleOverlay() }
+                detectTapGestures { showOverlay = !showOverlay }
             }
     ) {
         UIKitView(
             modifier = Modifier.fillMaxSize(),
-            factory = {
-                PlayerContainerView().also { container ->
-                    val layer = AVPlayerLayer()
-                    layer.player = player
-                    layer.videoGravity = AVLayerVideoGravityResizeAspect
-                    layer.frame = container.bounds
-                    container.layer.addSublayer(layer)
-                }
+            factory = { container ->
+                // factory 里显式创建 AVPlayerLayer 并挂 player：缺这步只有声音画面全黑
+                val layer = AVPlayerLayer()
+                layer.player = player
+                layer.videoGravity = AVLayerVideoGravityResizeAspect
+                layer.frame = container.bounds
+                container.layer.addSublayer(layer)
+                container
             },
             update = { container ->
+                // view 复用时重挂 player，防止 layer 重建后丢画面（黑条）
                 val sublayer = container.layer.sublayers?.firstOrNull() as? AVPlayerLayer
                 if (sublayer != null && sublayer.player != player) {
                     sublayer.player = player
+                }
+                // url 变化：同一 player 实例 replaceCurrentItem
+                if (url != loadedUrl) {
+                    loadedUrl = url
+                    val nsUrl = NSURL.URLWithString(url)
+                    if (nsUrl != null) {
+                        player.replaceCurrentItemWithPlayerItem(AVPlayerItem(nsUrl))
+                        player.play()
+                    }
                 }
             }
         )
@@ -284,7 +178,7 @@ private fun MvVideoContent(
                         .size(64.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.5f))
-                        .clickable(onClick = onTogglePlay),
+                        .clickable(onClick = togglePlay),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -338,5 +232,9 @@ private fun MvVideoContent(
                 }
             }
         }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { player.pause() }
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -158,6 +159,7 @@ fun PlayingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding()
                 .padding(16.dp)
         ) {
             Row(
@@ -317,7 +319,8 @@ fun QualitySheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 8.dp)
         ) {
             QUALITY_LEVELS.forEach { (level, label) ->
                 val checked = level == currentQuality
@@ -360,6 +363,7 @@ private fun PlaylistSheet(playerEngine: PlayerEngine) {
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(max = 460.dp)
+            .navigationBarsPadding()
     ) {
         Row(
             modifier = Modifier

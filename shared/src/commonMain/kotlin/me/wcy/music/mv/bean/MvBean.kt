@@ -94,6 +94,30 @@ data class MvUrlData(
  * GET /mv/first 或 /mv/all 返回 {data: List<MvItem>, hasMore, count, code}
  */
 @Serializable
+data class PersonalizedMvCard(
+    @SerialName("id")
+    val id: Long = 0,
+    @SerialName("name")
+    val name: String = "",
+    @SerialName("picUrl")
+    val picUrl: String = "",
+    @SerialName("artistName")
+    val artistName: String = "",
+    @SerialName("duration")
+    val duration: Long = 0,
+    @SerialName("playCount")
+    val playCount: Long = 0
+)
+
+@Serializable
+data class PersonalizedMvData(
+    @SerialName("code")
+    val code: Int = 0,
+    @SerialName("result")
+    val result: List<PersonalizedMvCard> = listOf()
+)
+
+@Serializable
 data class MvListData(
     @SerialName("code")
     val code: Int = 0,

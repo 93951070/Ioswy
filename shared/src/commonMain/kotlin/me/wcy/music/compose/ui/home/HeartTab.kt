@@ -5,22 +5,31 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,296 +37,460 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.datetime.Clock
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import me.wcy.music.common.bean.PlaylistData
-import me.wcy.music.common.bean.SharedJson
-import me.wcy.music.common.bean.decodeBean
+import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.compose.component.CoverImage
-import me.wcy.music.compose.component.PlaylistCard
 import me.wcy.music.compose.theme.AppThemeColor
-import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
-import me.wcy.music.shared.net.SharedNet
+import me.wcy.music.compose.theme.Red500
+import me.wcy.music.shared.net.AccountNet
+import me.wcy.music.shared.net.MineNet
+import me.wcy.music.shared.net.PlayExtraNet
+import me.wcy.music.shared.player.PlayerEngine
+
+/** 播放模式随机，PlayerEngine 约定 0 Loop / 1 Shuffle / 2 Single */
+private const val MODE_SHUFFLE = 1
+
+/** 心动 tab 阶段 */
+private const val PHASE_INIT = 0
+private const val PHASE_LOADING = 1
+private const val PHASE_READY = 2
+private const val PHASE_EMPTY = 3
+private const val PHASE_FAIL = 4
 
 /**
- * GET personalized 返回 {hasTaste, code, category, result: [{id, name, coverImgUrl, playCount, trackCount}]}
- * 注意 fixLegacyFields 会把带 trackCount 的对象的 picUrl 重命名为 coverImgUrl。
- * playlist/mylike 实测返回 MLog feed 无歌单 id，personalize/privatecontent 本地 404，故选此接口。
+ * 心动 tab 状态放进程级全局：底部 tab 切换会整体销毁 DiscoverScreen，
+ * Compose 侧 remember 会丢状态导致每次切回都重新随机换歌。
  */
-@Serializable
-private data class HeartPlaylistWrap(
-    @SerialName("code")
-    val code: Int = 0,
-    @SerialName("result")
-    val result: List<HeartPlaylistItem> = emptyList()
-)
+private val heartPhase = mutableStateOf(PHASE_INIT)
+private var heartEmptyMessage = ""
 
-@Serializable
-private data class HeartPlaylistItem(
-    @SerialName("id")
-    val id: Long = 0,
-    @SerialName("name")
-    val name: String = "",
-    @SerialName("coverImgUrl")
-    val coverUrl: String = "",
-    @SerialName("playCount")
-    val playCount: Long = 0,
-    @SerialName("trackCount")
-    val trackCount: Int = 0
-)
-
+/**
+ * 心动 tab：直接是播放器页面（仿网易云心动模式）。
+ * 首次进入拉喜欢列表 -> 随机种子 -> 心动模式推荐队列交给全局 PlayerEngine 播放。
+ * 实测：likelist/intelligence 均需登录 cookie；playmode/intelligence/list 的 pid
+ * 必须传「喜欢的音乐」歌单 id（user/playlist 中 specialType=5 的歌单，与 uid 不同），
+ * 传 uid 返回 400「不支持该歌单类型」。
+ */
 @Composable
 fun HeartTab(
-    viewModel: DiscoverViewModel,
-    onOpenRecommendSong: () -> Unit,
-    onOpenPersonalFm: () -> Unit,
-    onOpenPlaylistDetail: (Long) -> Unit,
-    onPlayPlaylist: (PlaylistData) -> Unit,
-    onPlayDailySong: (List<SongData>, Int) -> Unit
+    playerEngine: PlayerEngine,
+    onPlayQueue: (List<SongData>, Int) -> Unit,
+    onOpenPlaying: () -> Unit,
+    onOpenRecommendSong: () -> Unit
 ) {
-    val dailySongs by viewModel.dailySongs.collectAsState()
-    val privatePlaylists by viewModel.recommendPlaylist.collectAsState()
-    var heartbeatPlaylists by remember { mutableStateOf(emptyList<HeartPlaylistItem>()) }
+    val currentSong by playerEngine.currentSong.collectAsState()
+    val isPlaying by playerEngine.isPlaying.collectAsState()
+    val playProgress by playerEngine.playProgress.collectAsState()
+    val playMode by playerEngine.playMode.collectAsState()
+    val scope = rememberCoroutineScope()
+    val phase = heartPhase.value
 
+    // 每次重组进入都尝试初始化，initHeart 内部幂等：已完成过则直接跳过
     LaunchedEffect(Unit) {
-        runCatching {
-            SharedJson.decodeBean<HeartPlaylistWrap>(
-                SharedNet.post("personalized", params = listOf("limit" to 10))
-            )
-        }.onSuccess {
-            if (it.code == 200) {
-                heartbeatPlaylists = it.result
-            }
-        }
+        initHeart(playerEngine, onPlayQueue)
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 12.dp)
+    val song = currentSong
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
-        if (dailySongs.isNotEmpty()) {
-            item {
-                DailyRecommendCard(
-                    songCount = dailySongs.size,
-                    coverUrl = dailySongs.first().al.getSmallCover(),
-                    onPlayAll = { onPlayDailySong(dailySongs, 0) },
-                    onOpenDetail = onOpenRecommendSong
-                )
-            }
-        }
-
-        item {
-            PersonalFmCard(onClick = onOpenPersonalFm)
-        }
-
-        if (privatePlaylists.isNotEmpty()) {
-            item {
-                HomeSectionHeader(title = "私人雷达", onMore = null)
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(privatePlaylists, key = { it.id }) { playlist ->
-                        PlaylistCard(
-                            playlist = playlist,
-                            modifier = Modifier.width(120.dp),
-                            onClick = { onOpenPlaylistDetail(playlist.id) },
-                            onPlayClick = { onPlayPlaylist(playlist) }
-                        )
-                    }
+        when {
+            phase == PHASE_FAIL -> HeartStateView("心动模式加载失败，请稍后重试", "重试") {
+                scope.launch {
+                    heartPhase.value = PHASE_INIT
+                    initHeart(playerEngine, onPlayQueue)
                 }
             }
-        }
-
-        if (heartbeatPlaylists.isNotEmpty()) {
-            item {
-                HomeSectionHeader(title = "心跳歌单", onMore = null)
-            }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(heartbeatPlaylists, key = { it.id }) { item ->
-                        HeartPlaylistCard(
-                            item = item,
-                            onClick = { onOpenPlaylistDetail(item.id) }
-                        )
+            phase == PHASE_EMPTY -> HeartStateView(heartEmptyMessage, "去听歌", onOpenRecommendSong)
+            phase == PHASE_READY && song == null ->
+                HeartStateView("播放队列为空", "重新开启心动模式") {
+                    scope.launch {
+                        heartPhase.value = PHASE_INIT
+                        initHeart(playerEngine, onPlayQueue)
                     }
                 }
-            }
+            song == null -> HeartLoadingView()
+            else -> HeartPlayerContent(
+                song = song,
+                playerEngine = playerEngine,
+                isPlaying = isPlaying,
+                playProgress = playProgress,
+                playMode = playMode,
+                onOpenPlaying = onOpenPlaying
+            )
         }
     }
 }
 
-/** 每日推荐大横卡：日期 + 歌曲数 + 播放全部 */
-@Composable
-private fun DailyRecommendCard(
-    songCount: Int,
-    coverUrl: String,
-    onPlayAll: () -> Unit,
-    onOpenDetail: () -> Unit
+/**
+ * 心动队列初始化（幂等）：login/status 拿 uid -> likelist 拿喜欢 id -> 随机种子 ->
+ * intelligence 拿推荐队列 -> 设随机模式并整组交给播放器。
+ */
+private suspend fun initHeart(
+    playerEngine: PlayerEngine,
+    onPlayQueue: (List<SongData>, Int) -> Unit
 ) {
-    val date = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppThemeColor.ThemeColor.copy(alpha = 0.12f))
-            .clickable(onClick = onOpenDetail)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(AppThemeColor.ThemeColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "${date.monthNumber}.${date.dayOfMonth}",
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+    if (heartPhase.value != PHASE_INIT) return
+    heartPhase.value = PHASE_LOADING
+    runCatching {
+        val uid = AccountNet.getLoginStatus().data.account.id
+        if (uid <= 0) {
+            heartEmptyMessage = "登录后即可开启心动模式"
+            heartPhase.value = PHASE_EMPTY
+            return
+        }
+        val likeIds = MineNet.getMyLikeSongList(uid).ids.toList()
+        if (likeIds.isEmpty()) {
+            heartEmptyMessage = "还没有喜欢的歌曲，先去听听看吧"
+            heartPhase.value = PHASE_EMPTY
+            return
+        }
+        val likePid = MineNet.getUserPlaylist(uid).playlists
+            .firstOrNull { it.specialType == 5 }?.id ?: uid
+        val seed = likeIds.random()
+        val res = PlayExtraNet.getIntelligenceList(seed, pid = likePid, sid = seed)
+        val queue = res.data.orEmpty().mapNotNull { it.songInfo }.distinctBy { it.id }
+        if (res.code == 200 && queue.isNotEmpty()) {
+            playerEngine.setPlayMode(MODE_SHUFFLE)
+            onPlayQueue(queue, 0)
+            heartPhase.value = PHASE_READY
+        } else {
+            heartPhase.value = PHASE_FAIL
+        }
+    }.onFailure {
+        heartPhase.value = PHASE_FAIL
+    }
+}
+
+/** 播放器主体：模糊封面背景 + 大封面圆角卡 + 歌曲信息 + 红色进度条 + 控制按钮行 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HeartPlayerContent(
+    song: SongData,
+    playerEngine: PlayerEngine,
+    isPlaying: Boolean,
+    playProgress: Long,
+    playMode: Int,
+    onOpenPlaying: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var liked by remember { mutableStateOf(false) }
+
+    // 心形初始态来自真实喜欢检查，避免本进程外已喜欢的歌曲显示错误
+    LaunchedEffect(song.id) {
+        liked = runCatching { PlayExtraNet.checkSongLike(listOf(song.id)) }
+            .getOrNull()?.takeIf { it.code == 200 }
+            ?.let { song.id in it.ids } ?: false
+    }
+
+    val coverUrl = song.al.getLargeCover()
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (coverUrl.isNotBlank()) {
+            CoverImage(
+                url = coverUrl,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(50.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
             )
         }
+
         Column(
             modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp)
+                .fillMaxSize()
+                .padding(horizontal = 32.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "每日推荐",
-                color = AppThemeColor.TextH1,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
+                text = "心动模式",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CoverImage(
+                    url = coverUrl,
+                    contentDescription = song.name,
+                    cornerRadius = 16.dp,
+                    modifier = Modifier
+                        .fillMaxWidth(0.82f)
+                        .aspectRatio(1f)
+                        .clickable(onClick = onOpenPlaying)
+                )
+            }
+            Text(
+                text = song.name,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "根据你的音乐口味生成 · ${songCount}首",
-                color = AppThemeColor.TextH2,
-                fontSize = 12.sp,
+                text = song.ar.joinToString("/") { it.name },
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 4.dp)
             )
+            HeartSlider(
+                playProgress = playProgress,
+                durationMs = song.dt,
+                onSeek = { playerEngine.seekTo(it) },
+                modifier = Modifier.padding(top = 16.dp)
+            )
+            HeartControlsRow(
+                isPlaying = isPlaying,
+                playMode = playMode,
+                liked = liked,
+                onToggleMode = { playerEngine.setPlayMode(nextMode(playMode)) },
+                onPlayPause = { playerEngine.playPause() },
+                onPrev = { playerEngine.prev() },
+                onNext = { playerEngine.next() },
+                onToggleLike = {
+                    liked = !liked
+                    scope.launch {
+                        runCatching { MineNet.likeSong(song.id, liked) }
+                    }
+                },
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+            )
         }
+    }
+}
+
+/** 红色进度条：拖动中暂停刷新，松手 seek */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HeartSlider(
+    playProgress: Long,
+    durationMs: Long,
+    onSeek: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val duration = durationMs.toFloat().coerceAtLeast(1f)
+    val progress = playProgress.toFloat().coerceIn(0f, duration)
+    var dragValue by remember { mutableStateOf<Float?>(null) }
+    val sliderValue = dragValue ?: progress
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Slider(
+            value = sliderValue,
+            onValueChange = { dragValue = it },
+            onValueChangeFinished = {
+                dragValue?.let { onSeek(it.toInt()) }
+                dragValue = null
+            },
+            valueRange = 0f..duration,
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            },
+            track = { state ->
+                val range = state.valueRange
+                val fraction =
+                    ((state.value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.3f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(fraction)
+                            .fillMaxHeight()
+                            .background(Red500)
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(AppThemeColor.ThemeColor)
-                .clickable(onClick = onPlayAll)
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(
-                imageVector = Icons.Filled.PlayArrow,
-                contentDescription = "播放全部",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
+            Text(
+                text = formatTime(sliderValue.toLong()),
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 12.sp
             )
             Text(
-                text = "播放全部",
-                color = Color.White,
+                text = formatTime(duration.toLong()),
+                color = Color.White.copy(alpha = 0.7f),
                 fontSize = 12.sp
             )
         }
     }
 }
 
-/** 私人FM 入口卡 */
+/** 控制按钮行：播放模式 / 上一首 / 播放暂停 / 下一首 / 喜欢 */
 @Composable
-private fun PersonalFmCard(onClick: () -> Unit) {
+private fun HeartControlsRow(
+    isPlaying: Boolean,
+    playMode: Int,
+    liked: Boolean,
+    onToggleMode: () -> Unit,
+    onPlayPause: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onToggleLike: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppThemeColor.Card)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
+        Icon(
+            imageVector = modeIcon(playMode),
+            contentDescription = "播放模式",
+            tint = Color.White,
+            modifier = Modifier
+                .size(26.dp)
+                .clickable(onClick = onToggleMode)
+        )
+        Icon(
+            imageVector = Icons.Filled.SkipPrevious,
+            contentDescription = "上一首",
+            tint = Color.White,
+            modifier = Modifier
+                .size(34.dp)
+                .clickable(onClick = onPrev)
+        )
         Box(
             modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(AppThemeColor.ThemeColor.copy(alpha = 0.15f)),
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.2f))
+                .clickable(onClick = onPlayPause),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.Radio,
-                contentDescription = "私人FM",
-                tint = AppThemeColor.ThemeColor,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp)
-        ) {
-            Text(
-                text = "私人FM",
-                color = AppThemeColor.TextH1,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "享受你的专属电台",
-                color = AppThemeColor.TextH2,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 2.dp)
+                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = "播放",
+                tint = Color.White,
+                modifier = Modifier.size(40.dp)
             )
         }
         Icon(
-            imageVector = Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = AppThemeColor.TextH2,
-            modifier = Modifier.size(20.dp)
+            imageVector = Icons.Filled.SkipNext,
+            contentDescription = "下一首",
+            tint = Color.White,
+            modifier = Modifier
+                .size(34.dp)
+                .clickable(onClick = onNext)
+        )
+        Icon(
+            imageVector = if (liked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            contentDescription = "喜欢",
+            tint = if (liked) Red500 else Color.White,
+            modifier = Modifier
+                .size(26.dp)
+                .clickable(onClick = onToggleLike)
         )
     }
 }
 
-/** 心跳歌单卡片 */
+/** 加载中 */
 @Composable
-private fun HeartPlaylistCard(
-    item: HeartPlaylistItem,
-    onClick: () -> Unit
+private fun HeartLoadingView() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(color = Color.White)
+    }
+}
+
+/** 空态/失败态：提示 + 操作按钮 */
+@Composable
+private fun HeartStateView(
+    message: String,
+    actionLabel: String,
+    onAction: () -> Unit
 ) {
     Column(
         modifier = Modifier
-            .width(120.dp)
-            .clickable(onClick = onClick)
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        CoverImage(
-            url = item.coverUrl,
-            cornerRadius = 10.dp,
-            modifier = Modifier.size(120.dp)
-        )
         Text(
-            text = item.name,
-            color = AppThemeColor.TextH1,
-            fontSize = 12.sp,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
+            text = message,
+            color = Color.White.copy(alpha = 0.8f),
+            fontSize = 15.sp,
+            textAlign = TextAlign.Center
         )
+        Box(
+            modifier = Modifier
+                .padding(top = 20.dp)
+                .clip(CircleShape)
+                .background(Red500)
+                .clickable(onClick = onAction)
+                .padding(horizontal = 28.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = actionLabel,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
+}
+
+private fun modeIcon(mode: Int): androidx.compose.ui.graphics.vector.ImageVector {
+    return when (mode) {
+        1 -> Icons.Filled.Shuffle
+        2 -> Icons.Filled.RepeatOne
+        else -> Icons.Filled.Repeat
+    }
+}
+
+private fun nextMode(mode: Int): Int {
+    return when (mode) {
+        1 -> 2
+        2 -> 0
+        else -> 1
+    }
+}
+
+private fun formatTime(milli: Long): String {
+    val m = (milli / 60000).toString().padStart(2, '0')
+    val s = (milli / 1000 % 60).toString().padStart(2, '0')
+    return "$m:$s"
 }
 
 /** 区块标题，onMore 为 null 时隐藏「更多」入口 */

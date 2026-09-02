@@ -91,6 +91,7 @@ fun MainScreen(
                 NaviTab.Discover -> DiscoverScreen(
                     viewModel = discoverViewModel,
                     playerController = playerController,
+                    playerEngine = playerEngine,
                     onOpenDrawer = onOpenDrawer,
                     onOpenSearch = onOpenSearch,
                     onOpenPlaylistDetail = onOpenPlaylistDetail,
@@ -103,6 +104,9 @@ fun MainScreen(
                     onOpenDj = onOpenDj,
                     onOpenMvList = onOpenMvList,
                     onOpenPlaying = onOpenPlaying,
+                    onOpenMv = { id ->
+                        CRouter.with(context).url(RoutePath.MV_DETAIL).extra("id", id).start()
+                    },
                     onOpenVideo = {
                         CRouter.with(context).url(RoutePath.VIDEO).start()
                     },
