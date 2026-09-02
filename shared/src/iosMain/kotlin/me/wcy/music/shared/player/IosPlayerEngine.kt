@@ -333,14 +333,12 @@ class IosPlayerEngine : PlayerEngine {
             return
         }
         val elapsed = currentElapsedSeconds()
-        var info: Map<Any?, Any?> = NSDictionary(
-            dictionary = mapOf<Any?, Any?>(
-                MPMediaItemPropertyTitle to song.name,
-                MPMediaItemPropertyArtist to song.ar.joinToString("/") { it.name },
-                MPMediaItemPropertyPlaybackDuration to NSNumber(song.dt / 1000.0),
-                MPNowPlayingInfoPropertyElapsedPlaybackTime to NSNumber(elapsed),
-                MPNowPlayingInfoPropertyPlaybackRate to NSNumber(if (_isPlaying.value) 1.0 else 0.0)
-            )
+        var info: Map<Any?, Any?> = mapOf<Any?, Any?>(
+            MPMediaItemPropertyTitle to song.name,
+            MPMediaItemPropertyArtist to song.ar.joinToString("/") { it.name },
+            MPMediaItemPropertyPlaybackDuration to NSNumber(song.dt / 1000.0),
+            MPNowPlayingInfoPropertyElapsedPlaybackTime to NSNumber(elapsed),
+            MPNowPlayingInfoPropertyPlaybackRate to NSNumber(if (_isPlaying.value) 1.0 else 0.0)
         )
         if (artwork != null) {
             val bounds = artwork.size.useContents { CGSizeMake(width, height) }
@@ -357,7 +355,7 @@ class IosPlayerEngine : PlayerEngine {
         artworkSongId = song.id
         val nsUrl = NSURL.URLWithString(song.al.getLargeCover()) ?: return
         scope.launch(Dispatchers.Default) {
-            val data = NSData.dataWithContentsOfURL(nsUrl) ?: return@launch
+            val data = NSData.create(contentsOfURL = nsUrl) ?: return@launch
             // ponytail: UIImage(data:) 为 failable init，K/N nullability 有历史歧义，交由 updateNowPlaying 的可空参数兜底
             val image = UIImage(data = data)
             scope.launch(Dispatchers.Main) { updateNowPlaying(image) }
