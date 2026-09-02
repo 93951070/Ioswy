@@ -186,6 +186,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					-ld64,
+					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.wcy.music.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -212,6 +213,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					-ld64,
+					"-ObjC",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.wcy.music.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";

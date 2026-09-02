@@ -60,3 +60,18 @@ Entries discovered by the Agent during task execution should follow this format:
   - shared 侧抽象层现状：PlayerEngine（app=PlayerEngineBridge/Media3，ios=IosPlayerEngine/AVQueuePlayer）、UserSession（app=UserSessionBridge，ios=IosUserSession/NSUserDefaults）、SearchHistoryStore/MyCommentStore（接口+各端实现），绑定在 app/service/SharedBindingModule.kt
   - 迁移完成态：31 bean+网络层+13 个页面+组件全在 shared/commonMain；app 仅剩壳（Activity/Fragment 壳、MainScreen、Drawer、MainViewModel、二维码位图生成 QRUtils、MediaStore 扫描 LocalMusicLoader、歌词缓存 LrcCache）
   - iOS 云构建待验证风险：ObjC interop 枚举短名（AVPlayerItemStatus.ReadyToPlay 等）、AVPlayerItem.itemWithURL/AVAudioSession.setCategory 参数形式，若报错是单点小改
+
+[Project Knowledge Summary]
+- Date: 2026-09-02
+- Context: Discovered by Agent during 云构建 ipa 调通（用户仓库 93951070/Ioswy，10 轮迭代成功）
+- Category: Build Methods | Troubleshooting & Debugging
+- Instructions:
+  - K/N interop 避坑：AVFoundation/AVFAudio 必须**通配 import**（platform.AVFoundation.*——部分方法生成为包内扩展函数，显式 import 类名会全量 unresolved）；NS_ENUM 用顶层常量（AVPlayerTimeControlStatusPlaying/AVPlayerItemStatusReadyToPlay）；replaceCurrentItem → replaceCurrentItemWithPlayerItem；AVPlayerItem(nsUrl) 位置传参构造；NSUserDefaults.setObject(v, forKey = k)；AVQueuePlayer 父类方法链断，直接用 AVPlayer（队列手动管理不需要它）；AVAudioSession 在 platform.AVFAudio 包
+  - 本地(环境)变量能查证的 K/N 符号用 find ~/.konan -name "*.klib"——本项目环境无 K/N 发行版，只能靠云构建迭代
+  - K/N linkReleaseFramework OOM（7GB macos-14 runner）：去 --no-daemon + kotlin.native.daemon.jvmargs=-Xmx6g 后 Release 仍 OOM，**最终用 linkDebugFrameworkIosArm64**（跳过 -O 优化内存骤降，侧载测试够用）；恢复 Release 需更大 runner
+  - CI gradle 无 local.properties 时签名配置读取会炸：getLocalValue 里先判文件存在返回占位
+  - commonMain 里禁止 JVM-only API：LocalContext（coil3 直接传 url string）、String.format（padStart 拼接）、toSortedMap（entries.sortedBy+associate）——Android 编译不暴露这些错误，只有 iOS 编译会炸
+  - K/N 顶层函数生成的 ObjC 类名 = **文件名**Kt（IosRoot.kt → IosRootKt），不是模块名
+  - xcodebuild CONFIGURATION_BUILD_DIR 相对路径按 **项目目录**（iosApp/）解析，取产物用 iosApp/build/Debug-iphoneos/
+  - 用户仓库 push 后 workflow 可能不自动触发（首推新增 workflow 的 quirk），用 API dispatch：POST /repos/{owner}/{repo}/actions/workflows/ios-build.yml/dispatches {"ref":"main"}
+  - 推送用一次性 URL git push https://TOKEN@github.com/...（不写入 .git/config）
