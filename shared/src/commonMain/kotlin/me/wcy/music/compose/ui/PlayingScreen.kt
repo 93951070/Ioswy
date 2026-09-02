@@ -4,9 +4,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -125,24 +127,22 @@ fun PlayingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF424242), Color(0xFF212121))
-                )
-            )
+            .background(Color.Black)
     ) {
-        CoverImage(
-            url = coverUrl,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(60.dp)
-        )
+        if (coverUrl.isNotBlank()) {
+            CoverImage(
+                url = coverUrl,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(50.dp)
+            )
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-        )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -199,7 +199,7 @@ fun PlayingScreen(
                 )
             }
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -210,7 +210,7 @@ fun PlayingScreen(
                         coverUrl = coverUrl,
                         isPlaying = isPlaying,
                         onClick = { showCover = false },
-                        modifier = Modifier.size(280.dp)
+                        modifier = Modifier.size(maxWidth - 100.dp)
                     )
                 } else {
                     LyricsPanel(
@@ -372,7 +372,7 @@ private fun VinylCover(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 20s 一圈；graphicsLayer 内读 state，暂停时冻结当前角度，只重绘不重组
+    // 15s 一圈；graphicsLayer 内读 state，暂停时冻结当前角度，只重绘不重组
     val rotation = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
@@ -381,7 +381,7 @@ private fun VinylCover(
                 withFrameNanos { now ->
                     if (last != 0L) {
                         rotation.floatValue =
-                            (rotation.floatValue + (now - last) * 0.000000018f) % 360f
+                            (rotation.floatValue + (now - last) * 0.000000024f) % 360f
                     }
                     last = now
                 }
@@ -416,17 +416,24 @@ private fun VinylCover(
                     )
                 )
             }
-            CoverImage(
-                url = coverUrl,
-                contentDescription = "封面",
-                cornerRadius = 999.dp,
-                modifier = Modifier.fillMaxSize(0.72f)
-            )
             Box(
                 modifier = Modifier
-                    .size(14.dp)
+                    .fillMaxSize(0.68f)
                     .clip(CircleShape)
-                    .background(Color(0xFFE0E0E0))
+                    .border(2.dp, Color.White, CircleShape)
+            ) {
+                CoverImage(
+                    url = coverUrl,
+                    contentDescription = "封面",
+                    cornerRadius = 999.dp,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black)
             )
         }
         Canvas(

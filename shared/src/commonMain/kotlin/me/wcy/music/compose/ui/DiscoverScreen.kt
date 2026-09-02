@@ -17,15 +17,16 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AudioFile
-import androidx.compose.material.icons.filled.Leaderboard
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SurroundSound
-import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,7 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -215,6 +218,17 @@ private fun BannerPager(
                     .fillMaxWidth()
                     .height(120.dp)
             )
+            Text(
+                text = "${pagerState.currentPage + 1}/${banners.size}",
+                color = Color.White,
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            )
         }
     }
 }
@@ -231,24 +245,23 @@ private fun EntranceRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceAround
-    ) {
-        EntranceItem(
-            icon = Icons.Filled.AudioFile,
+    ) {        EntranceItem(
+            icon = Icons.Filled.DateRange,
             label = "每日推荐",
             onClick = onOpenRecommendSong
         )
         EntranceItem(
-            icon = Icons.Filled.VideoLibrary,
+            icon = Icons.Filled.Radio,
             label = "私人FM",
             onClick = onOpenPersonalFm
         )
         EntranceItem(
-            icon = Icons.Filled.SurroundSound,
+            icon = Icons.Filled.QueueMusic,
             label = "歌单",
             onClick = onOpenPlaylistSquare
         )
         EntranceItem(
-            icon = Icons.Filled.Leaderboard,
+            icon = Icons.Filled.BarChart,
             label = "排行榜",
             onClick = onOpenRanking
         )
@@ -267,23 +280,23 @@ private fun EntranceItem(
     ) {
         Box(
             modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(AppThemeColor.ThemeColor.copy(alpha = 0.12f)),
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(AppThemeColor.Card),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = AppThemeColor.ThemeColor,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
         Text(
             text = label,
-            color = AppThemeColor.TextH1,
+            color = AppThemeColor.TextH2,
             fontSize = 12.sp,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 6.dp)
         )
     }
 }
@@ -303,22 +316,27 @@ private fun SectionHeader(
         Text(
             text = title,
             color = AppThemeColor.TextH1,
-            fontSize = 17.sp
+            fontSize = 17.sp,
+            fontWeight = FontWeight.Bold
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(onClick = onMore)
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(AppThemeColor.ThemeColor.copy(alpha = 0.1f))
+                .clickable(onClick = onMore)
+                .padding(horizontal = 10.dp, vertical = 4.dp)
         ) {
             Text(
                 text = "更多",
-                color = AppThemeColor.TextH2,
-                fontSize = 13.sp
+                color = AppThemeColor.ThemeColor,
+                fontSize = 12.sp
             )
             Icon(
-                imageVector = Icons.Filled.MoreHoriz,
+                imageVector = Icons.Filled.ChevronRight,
                 contentDescription = "更多",
-                tint = AppThemeColor.TextH2,
-                modifier = Modifier.size(18.dp)
+                tint = AppThemeColor.ThemeColor,
+                modifier = Modifier.size(14.dp)
             )
         }
     }

@@ -4,20 +4,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,7 +58,12 @@ fun MineScreen(
     val myPlaylists by viewModel.myPlaylists.collectAsState()
     val collectPlaylists by viewModel.collectPlaylists.collectAsState()
 
-    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppThemeColor.Background),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         item {
             MineTitleBar(
                 onOpenDrawer = onOpenDrawer,
@@ -65,14 +73,16 @@ fun MineScreen(
 
         item {
             ProfileHeader(
+                isLoggedIn = profile != null,
                 avatarUrl = profile?.avatarUrl ?: "",
                 nickname = profile?.nickname ?: "",
+                signature = profile?.signature ?: "",
                 onOpenLogin = onOpenLogin
             )
         }
 
         item {
-            LocalMusicEntry(onOpenLocalMusic = onOpenLocalMusic)
+            EntryCard(onOpenLocalMusic = onOpenLocalMusic)
         }
 
         val like = likePlaylist
@@ -100,11 +110,21 @@ fun MineScreen(
 
         if (collectPlaylists.isNotEmpty()) {
             item {
-                SectionTitle("收藏歌单(${collectPlaylists.size})")
+                SectionTitle("我的收藏(${collectPlaylists.size})")
             }
             item {
-                PlaylistRow(collectPlaylists) { playlist ->
-                    onOpenPlaylistDetail(playlist, false, false)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AppThemeColor.Card)
+                ) {
+                    collectPlaylists.forEach { playlist ->
+                        PlaylistItemRow(playlist = playlist) {
+                            onOpenPlaylistDetail(playlist, false, false)
+                        }
+                    }
                 }
             }
         }
@@ -144,84 +164,109 @@ private fun MineTitleBar(
 
 @Composable
 private fun ProfileHeader(
+    isLoggedIn: Boolean,
     avatarUrl: String,
     nickname: String,
+    signature: String,
     onOpenLogin: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 20.dp)
-            .clickable(onClick = onOpenLogin),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CoverImage(
-            url = avatarUrl,
-            cornerRadius = 30.dp,
+    if (isLoggedIn) {
+        Row(
             modifier = Modifier
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFE5E5E5))
-        )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 16.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AppThemeColor.Card)
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = nickname.ifBlank { "点击登录" },
-                color = AppThemeColor.TextH1,
-                fontSize = 18.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+            CoverImage(
+                url = avatarUrl,
+                cornerRadius = 32.dp,
+                modifier = Modifier.size(64.dp)
             )
-            if (nickname.isBlank()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp)
+            ) {
                 Text(
-                    text = "登录后同步歌单",
+                    text = nickname,
+                    color = AppThemeColor.TextH1,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = signature.ifBlank { "编辑签名，展示我的音乐态度" },
                     color = AppThemeColor.TextH2,
                     fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
-        Icon(
-            imageVector = Icons.Filled.ArrowForward,
-            contentDescription = "进入",
-            tint = AppThemeColor.TextH2,
-            modifier = Modifier.size(20.dp)
-        )
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AppThemeColor.Card)
+                .padding(20.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(AppThemeColor.ThemeColor)
+                    .clickable(onClick = onOpenLogin)
+                    .padding(horizontal = 32.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = "立即登录",
+                    color = Color.White,
+                    fontSize = 15.sp
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun LocalMusicEntry(onOpenLocalMusic: () -> Unit) {
+private fun EntryCard(onOpenLocalMusic: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(AppThemeColor.ThemeColor.copy(alpha = 0.1f))
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(AppThemeColor.Card)
             .clickable(onClick = onOpenLocalMusic)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp)
+            .height(56.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Filled.Headphones,
-            contentDescription = "本地音乐",
+            imageVector = Icons.Filled.LibraryMusic,
+            contentDescription = "本地/下载音乐",
             tint = AppThemeColor.ThemeColor,
             modifier = Modifier.size(24.dp)
         )
         Text(
-            text = "  本地音乐",
+            text = "本地/下载音乐",
             color = AppThemeColor.TextH1,
             fontSize = 15.sp,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
         )
         Icon(
-            imageVector = Icons.Filled.ArrowForward,
+            imageVector = Icons.Filled.ChevronRight,
             contentDescription = "进入",
             tint = AppThemeColor.TextH2,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(20.dp)
         )
     }
 }
@@ -231,8 +276,9 @@ private fun SectionTitle(title: String) {
     Text(
         text = title,
         color = AppThemeColor.TextH1,
-        fontSize = 16.sp,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+        fontSize = 15.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 16.dp)
     )
 }
 
@@ -252,5 +298,50 @@ private fun PlaylistRow(
                 onClick = { onItemClick(playlist) }
             )
         }
+    }
+}
+
+@Composable
+private fun PlaylistItemRow(
+    playlist: PlaylistData,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CoverImage(
+            url = playlist.coverImgUrl,
+            cornerRadius = 8.dp,
+            modifier = Modifier.size(48.dp)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = playlist.name,
+                color = AppThemeColor.TextH1,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "${playlist.trackCount}首",
+                color = AppThemeColor.TextH2,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        Icon(
+            imageVector = Icons.Filled.ChevronRight,
+            contentDescription = "进入",
+            tint = AppThemeColor.TextH2,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }

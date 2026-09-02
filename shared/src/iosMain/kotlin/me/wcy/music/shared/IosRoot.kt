@@ -17,11 +17,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Text
@@ -39,11 +43,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.ComposeUIViewController
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -86,12 +93,47 @@ import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.MineNet
 import me.wcy.music.shared.net.apiCall
 import me.wcy.music.shared.player.IosPlayerEngine
+import org.jetbrains.skia.Image
+import org.jetbrains.skia.image.toComposeImageBitmap
+import platform.CoreGraphics.*
+import platform.CoreImage.*
+import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
+import platform.UIKit.*
+import platform.posix.memcpy
 
 private enum class IosTab(val label: String) {
     Discover("发现"),
     Mine("我的")
+}
+
+/** iOS 端二维码位图：CIFilter(qrCodeGenerator) -> CGImage -> PNG -> Skia ImageBitmap */
+@OptIn(ExperimentalForeignApi::class)
+private fun generateQrBitmap(content: String): ImageBitmap? = runCatching {
+    val filter = CIFilter.qrCodeGenerator()
+    filter.message = content.encodeToByteArray().toNSData()
+    val output = filter.outputImage
+        ?.imageByApplyingTransform(CGAffineTransformMakeScale(10.0, 10.0))
+        ?: return@runCatching null
+    val context = CIContext()
+    val cgImage = context.createCGImage(output, fromRect = output.extent)
+        ?: return@runCatching null
+    val pngData = UIImage(cgImage = cgImage).PNGData() ?: return@runCatching null
+    Image.makeFromEncoded(pngData.toKotlinBytes()).toComposeImageBitmap()
+}.getOrNull()
+
+@OptIn(ExperimentalForeignApi::class)
+private fun ByteArray.toNSData(): NSData =
+    usePinned { pinned -> NSData.create(bytes = pinned.addressOf(0), length = size.toULong()) }
+
+@OptIn(ExperimentalForeignApi::class)
+private fun NSData.toKotlinBytes(): ByteArray {
+    val size = length.toInt()
+    if (size <= 0) return ByteArray(0)
+    val dst = ByteArray(size)
+    dst.usePinned { pinned -> memcpy(pinned.addressOf(0), bytes, size.toULong()) }
+    return dst
 }
 
 /** 简单页栈：只允许栈顶页面参与组合，backStack 空时显示首页 3 tab */
@@ -537,6 +579,7 @@ private fun PersonalFmPage(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlayingPage(
     engine: IosPlayerEngine,
@@ -549,6 +592,7 @@ private fun PlayingPage(
     val currentSong by engine.currentSong.collectAsState()
     var lrcContent by remember { mutableStateOf("") }
     var lrcLabel by remember { mutableStateOf("歌词加载中…") }
+    var menuSong by remember { mutableStateOf<SongData?>(null) }
 
     LaunchedEffect(currentSong?.id) {
         val songId = currentSong?.id ?: return@LaunchedEffect
@@ -572,14 +616,29 @@ private fun PlayingPage(
         onShare = { _, songId ->
             onMessage("分享链接：https://music.163.com/song?id=$songId")
         },
-        // TODO 歌曲更多菜单（收藏/下一首播放/音质切换）未接
-        onOpenMenu = { _, _ -> onMessage("功能开发中") },
+        onOpenMenu = { song, _ -> menuSong = song },
         onDownload = { onMessage("敬请期待") },
         onMessage = onMessage,
         lrcContent = lrcContent,
         onUpdateLrc = {},
         lrcLabel = lrcLabel
     )
+
+    menuSong?.let { song ->
+        ModalBottomSheet(
+            onDismissRequest = { menuSong = null },
+            containerColor = Color.White
+        ) {
+            IosMenuRow(Icons.Filled.FavoriteBorder, "收藏到我喜欢") {
+                onToggleLike(song.id)
+                menuSong = null
+            }
+            IosMenuRow(Icons.Filled.QueueMusic, "下一首播放") {
+                engine.playNext(song)
+                menuSong = null
+            }
+        }
+    }
 }
 
 @Composable
@@ -592,11 +651,14 @@ private fun LoginPage(
     var showQrcode by remember { mutableStateOf(false) }
     if (showQrcode) {
         val viewModel = remember { QrcodeLoginViewModel(session) }
-        // TODO 二维码位图生成未接：qrUrl 是二维码内容串，Android 用 zbar 本地生成；
-        //  iOS 需 CIFilter(qrCodeGenerator) -> CGImage -> ImageBitmap 链路，本轮先显示状态文本
+        var qrCodeImage by remember { mutableStateOf<ImageBitmap?>(null) }
+        val qrUrl by viewModel.qrUrl.collectAsState()
+        LaunchedEffect(qrUrl) {
+            qrCodeImage = withContext(Dispatchers.Default) { qrUrl?.let { generateQrBitmap(it) } }
+        }
         QrcodeLoginScreen(
             viewModel = viewModel,
-            qrCodeImage = null,
+            qrCodeImage = qrCodeImage,
             onLoginSuccess = onLoginSuccess,
             onSwitchPhone = { showQrcode = false },
             onMessage = onMessage,
@@ -743,20 +805,20 @@ private fun IosDrawerContent(
             }
         }
 
-        IosDrawerMenuRow(Icons.Filled.Email, "我的消息") {
+        IosMenuRow(Icons.Filled.Email, "我的消息") {
             onClose(); onMessage("功能开发中")
         }
-        IosDrawerMenuRow(Icons.Filled.ShoppingCart, "云贝商城") {
+        IosMenuRow(Icons.Filled.ShoppingCart, "云贝商城") {
             onClose(); onMessage("功能开发中")
         }
-        IosDrawerMenuRow(Icons.Filled.Info, "我的等级") {
+        IosMenuRow(Icons.Filled.Info, "我的等级") {
             onClose(); onMessage("功能开发中")
         }
-        IosDrawerMenuRow(Icons.Filled.Star, "会员中心") {
+        IosMenuRow(Icons.Filled.Star, "会员中心") {
             onClose(); onMessage("功能开发中")
         }
         if (profile != null) {
-            IosDrawerMenuRow(Icons.Filled.ExitToApp, "退出登录") {
+            IosMenuRow(Icons.Filled.ExitToApp, "退出登录") {
                 onClose(); onLogout()
             }
         }
@@ -764,7 +826,7 @@ private fun IosDrawerContent(
 }
 
 @Composable
-private fun IosDrawerMenuRow(
+private fun IosMenuRow(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit
