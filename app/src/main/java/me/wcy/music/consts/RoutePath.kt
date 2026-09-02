@@ -14,4 +14,5 @@ object RoutePath {
     const val PLAYLIST_SQUARE = "/playlist/square"
     const val PLAYING = "/playing"
     const val RANKING = "/ranking"
+    const val PERSONAL_FM = "/personal_fm"
 }

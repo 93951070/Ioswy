@@ -1,0 +1,222 @@
+package me.wcy.music.shared.net
+
+import me.wcy.music.common.bean.LrcDataWrap
+import me.wcy.music.common.bean.SharedJson
+import me.wcy.music.common.bean.SongData
+import me.wcy.music.common.bean.SongUrlData
+import me.wcy.music.discover.banner.BannerListData
+import me.wcy.music.discover.comment.bean.CommentData
+import me.wcy.music.discover.comment.bean.CommentOpData
+import me.wcy.music.discover.fm.bean.PersonalFmData
+import me.wcy.music.discover.playlist.detail.bean.PlaylistDetailData
+import me.wcy.music.discover.playlist.detail.bean.SongListData
+import me.wcy.music.discover.playlist.square.bean.CatlistData
+import me.wcy.music.discover.playlist.square.bean.PlaylistListData
+import me.wcy.music.discover.playlist.square.bean.PlaylistTagListData
+import me.wcy.music.discover.recommend.song.bean.RecommendSongListData
+
+/**
+ * 发现页接口。
+ */
+object DiscoverNet {
+
+    suspend fun getRecommendSongs(): NetResult<RecommendSongListData> {
+        return SharedJson.decodeFromString(SharedNet.post("recommend/songs"))
+    }
+
+    suspend fun getRecommendPlaylists(): PlaylistListData {
+        return SharedJson.decodeFromString(SharedNet.post("recommend/resource"))
+    }
+
+    suspend fun getSongUrl(
+        id: Long,
+        level: String,
+    ): NetResult<List<SongUrlData>> {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "song/url/v1",
+                params = listOf(
+                    "id" to id,
+                    "level" to level
+                )
+            )
+        )
+    }
+
+    suspend fun getLrc(
+        id: Long,
+    ): LrcDataWrap {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "lyric",
+                params = listOf(
+                    "id" to id
+                )
+            )
+        )
+    }
+
+    suspend fun getPlaylistDetail(
+        id: Long,
+    ): PlaylistDetailData {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "playlist/detail",
+                params = listOf(
+                    "id" to id
+                )
+            )
+        )
+    }
+
+    suspend fun getPlaylistSongList(
+        id: Long,
+        limit: Int? = null,
+        offset: Int? = null,
+        timestamp: Long? = null
+    ): SongListData {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "playlist/track/all",
+                params = listOf(
+                    "id" to id,
+                    "limit" to limit,
+                    "offset" to offset,
+                    "timestamp" to timestamp
+                )
+            )
+        )
+    }
+
+    suspend fun getPlaylistTagList(): PlaylistTagListData {
+        return SharedJson.decodeFromString(SharedNet.post("playlist/hot"))
+    }
+
+    suspend fun getPlaylistList(
+        cat: String,
+        limit: Int,
+        offset: Int,
+    ): PlaylistListData {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "top/playlist",
+                params = listOf(
+                    "cat" to cat,
+                    "limit" to limit,
+                    "offset" to offset
+                )
+            )
+        )
+    }
+
+    suspend fun getRankingList(): PlaylistListData {
+        return SharedJson.decodeFromString(SharedNet.post("toplist"))
+    }
+
+    suspend fun getBannerList(): BannerListData {
+        return SharedJson.decodeFromString(
+            SharedNet.get(
+                "banner",
+                params = listOf(
+                    "type" to 2
+                )
+            )
+        )
+    }
+
+    suspend fun getPersonalFm(
+        timestamp: Long = SharedNet.currentTimeMillis()
+    ): PersonalFmData {
+        return SharedJson.decodeFromString(
+            SharedNet.get(
+                "personal_fm",
+                params = listOf(
+                    "timestamp" to timestamp
+                )
+            )
+        )
+    }
+
+    suspend fun getCatlist(): CatlistData {
+        return SharedJson.decodeFromString(SharedNet.get("playlist/catlist"))
+    }
+
+    suspend fun getCommentMusic(
+        id: Long,
+        limit: Int = 30,
+        offset: Int = 0,
+    ): CommentData {
+        return SharedJson.decodeFromString(
+            SharedNet.get(
+                "comment/music",
+                params = listOf(
+                    "id" to id,
+                    "limit" to limit,
+                    "offset" to offset
+                )
+            )
+        )
+    }
+
+    suspend fun likeComment(
+        songId: Long,
+        commentId: Long,
+        t: Int,
+        type: Int = 0,
+    ): CommentOpData {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "comment/like",
+                params = listOf(
+                    "id" to songId,
+                    "cid" to commentId,
+                    "t" to t,
+                    "type" to type
+                )
+            )
+        )
+    }
+
+    suspend fun addComment(
+        songId: Long,
+        type: Int = 0,
+        t: Int = 1,
+        content: String,
+    ): CommentOpData {
+        return SharedJson.decodeFromString(
+            SharedNet.post(
+                "comment",
+                params = listOf(
+                    "id" to songId,
+                    "type" to type,
+                    "t" to t,
+                    "content" to content
+                )
+            )
+        )
+    }
+
+    private const val SONG_LIST_LIMIT = 800
+
+    suspend fun getFullPlaylistSongList(id: Long, timestamp: Long? = null): SongListData {
+        var offset = 0
+        val list = mutableListOf<SongData>()
+        while (true) {
+            val songList = getPlaylistSongList(
+                id,
+                limit = SONG_LIST_LIMIT,
+                offset = offset,
+                timestamp = timestamp
+            )
+            if (songList.code != 200) {
+                throw Exception("code = ${songList.code}")
+            }
+            if (songList.songs.isEmpty()) {
+                break
+            }
+            list.addAll(songList.songs)
+            offset = list.size
+        }
+        return SongListData(200, list)
+    }
+}

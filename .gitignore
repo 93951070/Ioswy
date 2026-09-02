@@ -6,3 +6,11 @@
 .DS_Store
 /build
 /captures
+
+# KMP build outputs
+app/build/
+shared/build/
+build/
+*.apk
+ponymusic-compose-backup/
+iosApp/build/

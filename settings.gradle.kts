@@ -20,5 +20,6 @@ dependencyResolutionManagement {
     }
 }
 include(":app")
+include(":shared")
 // include(":common")
 // project(":common").projectDir = File("../android-common/common")

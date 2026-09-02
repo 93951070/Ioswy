@@ -7,7 +7,7 @@ import me.wcy.music.account.service.UserServiceModule.Companion.userService
 import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.common.dialog.songmenu.MenuItem
-import me.wcy.music.mine.MineApi
+import me.wcy.music.shared.net.MineNet
 import top.wangchenyan.common.ext.findActivity
 import top.wangchenyan.common.ext.showConfirmDialog
 import top.wangchenyan.common.ext.toast
@@ -31,7 +31,7 @@ class DeletePlaylistSongMenuItem(
         activity.showConfirmDialog(message = "确定将所选音乐从列表删除？") {
             activity.lifecycleScope.launch {
                 val result = runCatching {
-                    MineApi.get().collectSong(playlistData.id, songData.id.toString(), "del")
+                    MineNet.collectSong(playlistData.id, songData.id.toString(), "del")
                 }
                 if (result.isSuccess) {
                     val body = result.getOrThrow().body

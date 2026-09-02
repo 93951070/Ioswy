@@ -4,7 +4,7 @@ import android.app.Activity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
-import me.wcy.music.account.AccountApi
+import me.wcy.music.shared.net.AccountNet
 import me.wcy.music.account.AccountPreference
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.consts.RoutePath
@@ -39,7 +39,7 @@ class UserServiceImpl @Inject constructor() : UserService {
     override suspend fun login(cookie: String): CommonResult<ProfileData> {
         AccountPreference.cookie = cookie
         val res = kotlin.runCatching {
-            AccountApi.get().getLoginStatus()
+            AccountNet.getLoginStatus()
         }
         return if (res.isSuccess) {
             val loginStatusData = res.getOrThrow()
@@ -47,7 +47,7 @@ class UserServiceImpl @Inject constructor() : UserService {
             if (status == 0
                 && loginStatusData.data.profile != null
             ) {
-                val profileData = loginStatusData.data.profile
+                val profileData = loginStatusData.data.profile!!
                 _profile.value = profileData
                 AccountPreference.profile = profileData
                 CommonResult.success(profileData)

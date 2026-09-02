@@ -3,36 +3,47 @@ package me.wcy.music.main
 import android.content.DialogInterface
 import android.content.Intent
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.MenuItem
-import androidx.annotation.DrawableRes
-import androidx.appcompat.app.AlertDialog
-import androidx.core.view.GravityCompat
+import androidx.activity.compose.setContent
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.navigation.NavigationView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import me.wcy.music.R
 import me.wcy.music.account.service.UserService
 import me.wcy.music.common.ApiDomainDialog
 import me.wcy.music.common.BaseMusicActivity
+import me.wcy.music.common.bean.PlaylistData
+import me.wcy.music.compose.theme.MusicTheme
+import me.wcy.music.compose.ui.DrawerContent
+import me.wcy.music.compose.ui.MainScreen
 import me.wcy.music.consts.RoutePath
-import me.wcy.music.databinding.ActivityMainBinding
-import me.wcy.music.databinding.NavigationHeaderBinding
-import me.wcy.music.databinding.TabItemBinding
+import me.wcy.music.discover.banner.BannerData
+import me.wcy.music.discover.home.viewmodel.DiscoverCacheStore
+import me.wcy.music.discover.home.viewmodel.DiscoverViewModel
+import me.wcy.music.mine.home.viewmodel.MineViewModel
+import me.wcy.music.net.NetCache
+import me.wcy.music.storage.preference.ConfigPreferences
 import me.wcy.music.service.MusicService
 import me.wcy.music.service.PlayServiceModule
 import me.wcy.music.service.PlayServiceModule.playerController
+import me.wcy.music.shared.player.PlayerEngine
 import me.wcy.music.utils.QuitTimer
 import me.wcy.music.utils.TimeUtils
 import me.wcy.router.CRouter
 import top.wangchenyan.common.ext.getColorEx
 import top.wangchenyan.common.ext.showConfirmDialog
 import top.wangchenyan.common.ext.toast
-import top.wangchenyan.common.ext.viewBindings
-import top.wangchenyan.common.widget.pager.CustomTabPager
 import javax.inject.Inject
 
 /**
@@ -40,35 +51,141 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class MainActivity : BaseMusicActivity() {
-    private val viewBinding by viewBindings<ActivityMainBinding>()
     private val quitTimer by lazy {
         QuitTimer(onTimerListener)
     }
-    private var timerItem: MenuItem? = null
+    private var apiDomainDialog: ApiDomainDialog? = null
 
     @Inject
     lateinit var userService: UserService
 
+    @Inject
+    lateinit var playerEngine: PlayerEngine
+
+    private val discoverCacheStore = object : DiscoverCacheStore {
+        override suspend fun getBanners(): List<BannerData>? {
+            return NetCache.globalCache.getJsonArray(
+                DiscoverViewModel.CACHE_KEY_BANNER,
+                BannerData::class.java
+            )
+        }
+
+        override suspend fun putBanners(value: List<BannerData>) {
+            NetCache.globalCache.putJson(DiscoverViewModel.CACHE_KEY_BANNER, value)
+        }
+
+        override suspend fun getRecommendPlaylists(): List<PlaylistData>? {
+            if (!userService.isLogin()) return null
+            return NetCache.userCache.getJsonArray(
+                DiscoverViewModel.CACHE_KEY_REC_PLAYLIST,
+                PlaylistData::class.java
+            )
+        }
+
+        override suspend fun putRecommendPlaylists(value: List<PlaylistData>) {
+            if (!userService.isLogin()) return
+            NetCache.userCache.putJson(DiscoverViewModel.CACHE_KEY_REC_PLAYLIST, value)
+        }
+
+        override suspend fun getRankingList(): List<PlaylistData>? {
+            return NetCache.globalCache.getJsonArray(
+                DiscoverViewModel.CACHE_KEY_RANKING_LIST,
+                PlaylistData::class.java
+            )
+        }
+
+        override suspend fun putRankingList(value: List<PlaylistData>) {
+            NetCache.globalCache.putJson(DiscoverViewModel.CACHE_KEY_RANKING_LIST, value)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        PlayServiceModule.isPlayerReady.observe(this) { isReady ->
-            if (isReady) {
-                setContentView(viewBinding.root)
-
-                CustomTabPager(lifecycle, supportFragmentManager, viewBinding.viewPager).apply {
-                    NaviTab.ALL.onEach {
-                        val tabItem = getTabItem(it.icon, it.name)
-                        addFragment(it.newFragment(), tabItem.root)
+        setContent {
+            MusicTheme {
+                val playerReady by PlayServiceModule.isPlayerReady.observeAsState(false)
+                if (playerReady) {
+                    val drawerState = rememberDrawerState(DrawerValue.Closed)
+                    val scope = rememberCoroutineScope()
+                    ModalNavigationDrawer(
+                        drawerState = drawerState,
+                        drawerContent = {
+                            DrawerContent(
+                                userService = userService,
+                                onMenuSelect = { itemId ->
+                                    onMenuSelect(itemId, drawerState, scope)
+                                }
+                            )
+                        }
+                    ) {
+                        MainScreen(
+                            drawerState = drawerState,
+                            discoverViewModel = viewModel {
+                                DiscoverViewModel(
+                                    profileFlow = userService.profile,
+                                    hasApiDomain = { ConfigPreferences.apiDomain.isNotEmpty() },
+                                    cache = discoverCacheStore
+                                )
+                            },
+                            mineViewModel = viewModel {
+                                MineViewModel(
+                                    profileFlow = userService.profile,
+                                    readPlaylistCache = {
+                                        NetCache.userCache.getJsonArray(
+                                            PLAYLIST_CACHE_KEY,
+                                            PlaylistData::class.java
+                                        )
+                                    },
+                                    writePlaylistCache = { list ->
+                                        NetCache.userCache.putJson(PLAYLIST_CACHE_KEY, list)
+                                    }
+                                )
+                            },
+                            playerController = application.playerController(),
+                            playerEngine = playerEngine,
+                            userService = userService,
+                            onOpenDrawer = { scope.launch { drawerState.open() } },
+                            onMenuSelect = { itemId ->
+                                onMenuSelect(itemId, drawerState, scope)
+                            },
+                            onOpenPlaylist = { onOpenPlaylist() },
+                            onOpenPlaying = {
+                                CRouter.with(this@MainActivity).url(RoutePath.PLAYING).start()
+                            },
+                            onOpenPlaylistDetail = { id ->
+                                CRouter.with(this@MainActivity)
+                                    .url(RoutePath.PLAYLIST_DETAIL)
+                                    .extra("id", id)
+                                    .start()
+                            },
+                            onOpenRanking = {
+                                CRouter.with(this@MainActivity).url(RoutePath.RANKING).start()
+                            },
+                            onOpenPlaylistSquare = {
+                                CRouter.with(this@MainActivity).url(RoutePath.PLAYLIST_SQUARE).start()
+                            },
+                            onOpenRecommendSong = {
+                                CRouter.with(this@MainActivity).url(RoutePath.RECOMMEND_SONG).start()
+                            },
+                            onOpenPersonalFm = {
+                                CRouter.with(this@MainActivity).url(RoutePath.PERSONAL_FM).start()
+                            },
+                            onOpenLocalMusic = {
+                                CRouter.with(this@MainActivity).url(RoutePath.LOCAL_SONG).start()
+                            },
+                            onOpenSearch = {
+                                CRouter.with(this@MainActivity).url(RoutePath.SEARCH).start()
+                            },
+                            onOpenLogin = {
+                                CRouter.with(this@MainActivity).url(RoutePath.LOGIN).start()
+                            }
+                        )
                     }
-                    setScrollable(false)
-                    setup()
                 }
-
-                initDrawer()
-                parseIntent()
             }
         }
+
+        parseIntent()
 
         configWindowInsets {
             navBarColor = getColorEx(R.color.tab_bg)
@@ -81,31 +198,9 @@ class MainActivity : BaseMusicActivity() {
         parseIntent()
     }
 
-    private fun initDrawer() {
-        val navigationHeaderBinding = NavigationHeaderBinding.inflate(
-            LayoutInflater.from(this),
-            viewBinding.navigationView,
-            false
-        )
-        viewBinding.navigationView.addHeaderView(navigationHeaderBinding.root)
-        viewBinding.navigationView.setNavigationItemSelectedListener(onMenuSelectListener)
-        lifecycleScope.launch {
-            userService.profile.collectLatest { profile ->
-                val menuLogout = viewBinding.navigationView.menu.findItem(R.id.action_logout)
-                menuLogout.isVisible = profile != null
-            }
-        }
-    }
-
-    fun openDrawer() {
-        if (viewBinding.drawerLayout.isDrawerOpen(GravityCompat.START).not()) {
-            viewBinding.drawerLayout.openDrawer(GravityCompat.START)
-        }
-    }
-
     private fun parseIntent() {
         val intent = intent
-        if (intent.hasExtra(MusicService.EXTRA_NOTIFICATION)) {
+        if (intent.hasExtra(MusicService.EXTRA_NOTIFICATION) && PlayServiceModule.isPlayerReady.value == true) {
             if (application.playerController().currentSong.value != null) {
                 CRouter.with(this).url(RoutePath.PLAYING).start()
             }
@@ -113,58 +208,55 @@ class MainActivity : BaseMusicActivity() {
         }
     }
 
-    private val onMenuSelectListener = object : NavigationView.OnNavigationItemSelectedListener {
-        override fun onNavigationItemSelected(item: MenuItem): Boolean {
-            viewBinding.drawerLayout.closeDrawers()
-            lifecycleScope.launch {
-                delay(1000)
-                item.isChecked = false
+    fun openDrawer() {
+        // 兼容旧的 View Fragment 调用；Compose 侧通过 drawerState 打开
+    }
+
+    private fun onOpenPlaylist() {
+        CRouter.with(this).url(RoutePath.PLAYING).start()
+    }
+
+    private fun onMenuSelect(
+        itemId: Int,
+        drawerState: androidx.compose.material3.DrawerState,
+        scope: kotlinx.coroutines.CoroutineScope
+    ) {
+        scope.launch {
+            delay(200)
+            drawerState.close()
+        }
+        when (itemId) {
+            R.id.action_domain_setting -> {
+                if (apiDomainDialog == null) {
+                    apiDomainDialog = ApiDomainDialog(this)
+                }
+                apiDomainDialog?.show()
             }
-            when (item.itemId) {
-                R.id.action_domain_setting -> {
-                    ApiDomainDialog(this@MainActivity).show()
-                    return true
-                }
-
-                R.id.action_setting -> {
-                    CRouter.with(this@MainActivity).url("/settings").start()
-                    return true
-                }
-
-                R.id.action_timer -> {
-                    timerDialog()
-                    return true
-                }
-
-                R.id.action_logout -> {
-                    logout()
-                    return true
-                }
-
-                R.id.action_exit -> {
-                    exitApp()
-                    return true
-                }
-
-                R.id.action_about -> {
-                    startActivity(Intent(this@MainActivity, AboutActivity::class.java))
-                    return true
-                }
+            R.id.action_setting -> {
+                CRouter.with(this).url("/settings").start()
             }
-            return false
+            R.id.action_timer -> {
+                timerDialog()
+            }
+            R.id.action_logout -> {
+                logout()
+            }
+            R.id.action_exit -> {
+                exitApp()
+            }
+            R.id.action_about -> {
+                startActivity(Intent(this, AboutActivity::class.java))
+            }
         }
     }
 
     private val onTimerListener = object : QuitTimer.OnTimerListener {
         override fun onTick(remain: Long) {
-            if (timerItem == null) {
-                timerItem = viewBinding.navigationView.menu.findItem(R.id.action_timer)
-            }
             val title = getString(R.string.menu_timer)
-            timerItem?.title = if (remain == 0L) {
-                title
+            if (remain == 0L) {
+                toast(title)
             } else {
-                TimeUtils.formatTime("$title(mm:ss)", remain)
+                toast(TimeUtils.formatTime("$title(mm:ss)", remain))
             }
         }
 
@@ -174,7 +266,7 @@ class MainActivity : BaseMusicActivity() {
     }
 
     private fun timerDialog() {
-        AlertDialog.Builder(this)
+        android.app.AlertDialog.Builder(this)
             .setTitle(R.string.menu_timer)
             .setItems(resources.getStringArray(R.array.timer_text)) { dialog: DialogInterface?, which: Int ->
                 val times = resources.getIntArray(R.array.timer_int)
@@ -205,15 +297,12 @@ class MainActivity : BaseMusicActivity() {
         finish()
     }
 
-    private fun getTabItem(@DrawableRes icon: Int, text: CharSequence): TabItemBinding {
-        val binding = TabItemBinding.inflate(layoutInflater, viewBinding.tabBar, true)
-        binding.ivIcon.setImageResource(icon)
-        binding.tvTitle.text = text
-        return binding
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         quitTimer.stop()
+    }
+
+    private companion object {
+        const val PLAYLIST_CACHE_KEY = "my_playlist"
     }
 }

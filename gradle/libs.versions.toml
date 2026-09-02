@@ -10,6 +10,12 @@ java = "VERSION_17"
 # plugin
 agp = "8.5.2"
 kotlin = "2.1.0"
+cmp = "1.7.3"
+coil3 = "3.0.4"
+ktor = "3.0.3"
+retrofit2 = "2.11.0"
+kotlinx-serialization-json = "1.7.3"
+kotlinx-datetime = "0.6.2"
 ksp = "2.1.0-1.0.29"
 hilt = "2.57.1"
 # sdk
@@ -17,11 +23,19 @@ media3 = "1.8.0"
 room = "2.8.3"
 common = "1.0.2"
 crouter = "3.0.0-beta01"
+# compose
+compose-bom = "2024.12.01"
+navigation-compose = "2.8.9"
+activity-compose = "1.7.0"
+coil = "2.7.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "cmp" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 gms = { id = "com.google.gms.google-services", version = "4.4.4" }
 crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.6" }
@@ -44,6 +58,36 @@ room = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 preference = { group = "androidx.preference", name = "preference-ktx", version = "1.2.1" }
 glance = { group = "androidx.glance", name = "glance-appwidget", version = "1.1.1" }
+# compose
+compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
+compose-ui = { group = "androidx.compose.ui", name = "ui" }
+compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+compose-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
+compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+compose-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata" }
+compose-animation = { group = "androidx.compose.animation", name = "animation" }
+compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
+navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
+lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version = "2.8.7" }
+lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version = "2.8.7" }
+lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version = "2.8.7" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+# kmp
+coil3-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil3" }
+coil3-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil3" }
+coil3-network-ktor3 = { group = "io.coil-kt.coil3", name = "coil-network-ktor3", version.ref = "coil3" }
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { group = "io.ktor", name = "ktor-client-darwin", version.ref = "ktor" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit2" }
+retrofit-kotlinx-converter = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit2" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinx-datetime" }
 # google
 crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics-ktx", version = "19.4.4" }
 analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx", version = "22.5.0" }
@@ -59,3 +103,4 @@ loggingInterceptor = { group = "com.github.ihsanbal", name = "LoggingInterceptor
 zbar = { group = "cn.bertsir.zbarLibary", name = "zbarlibary", version = "1.4.2" }
 blurry = { group = "jp.wasabeef", name = "blurry", version = "4.0.1" }
 banner = { group = "io.github.youth5201314", name = "banner", version = "2.2.2" }
+errorprone = { group = "com.google.errorprone", name = "error_prone_annotations", version = "2.15.0" }

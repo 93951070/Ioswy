@@ -1,20 +1,19 @@
 package me.wcy.music.account.login.phone
 
 import android.view.View
-import androidx.core.widget.doAfterTextChanged
+import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import top.wangchenyan.common.ext.viewBindings
-import top.wangchenyan.common.utils.ToastUtils
 import me.wcy.music.account.login.LoginRouteFragment
-import me.wcy.music.account.service.UserService
 import me.wcy.music.common.BaseMusicFragment
+import me.wcy.music.compose.theme.MusicTheme
+import me.wcy.music.compose.ui.PhoneLoginScreen
 import me.wcy.music.consts.RoutePath
-import me.wcy.music.databinding.FragmentPhoneLoginBinding
+import me.wcy.music.shared.account.UserSession
 import me.wcy.router.annotation.Route
+import top.wangchenyan.common.utils.ToastUtils
 import javax.inject.Inject
 
 /**
@@ -23,93 +22,40 @@ import javax.inject.Inject
 @Route(RoutePath.PHONE_LOGIN)
 @AndroidEntryPoint
 class PhoneLoginFragment : BaseMusicFragment() {
-    private val viewBinding by viewBindings<FragmentPhoneLoginBinding>()
-    private val viewModel by viewModels<PhoneLoginViewModel>()
+    private val viewModel by viewModels<PhoneLoginViewModel> {
+        viewModelFactory {
+            initializer {
+                PhoneLoginViewModel(userSession)
+            }
+        }
+    }
+    private var composeView: ComposeView? = null
 
     @Inject
-    lateinit var userService: UserService
+    lateinit var userSession: UserSession
 
     override fun getRootView(): View {
-        return viewBinding.root
-    }
-
-    override fun onLazyCreate() {
-        super.onLazyCreate()
-
-        initView()
-        initDataObserver()
-    }
-
-    private fun initView() {
-        val updateLoginBtnState = {
-            viewBinding.btnLogin.isEnabled =
-                viewBinding.etPhone.length() > 0 && viewBinding.etPhoneCode.length() > 0
-        }
-        viewBinding.etPhone.doAfterTextChanged {
-            updateLoginBtnState()
-        }
-        viewBinding.etPhoneCode.doAfterTextChanged {
-            updateLoginBtnState()
-        }
-        viewBinding.tvSendCode.setOnClickListener {
-            val phone = viewBinding.etPhone.text?.toString()
-            if (phone.isNullOrEmpty()) {
-                ToastUtils.show("请输入手机号")
-                return@setOnClickListener
-            }
-            lifecycleScope.launch {
-                viewBinding.tvSendCode.isEnabled = false
-                val res = viewModel.sendPhoneCode(phone)
-                if (res.isSuccess().not()) {
-                    viewBinding.tvSendCode.isEnabled = true
-                    ToastUtils.show(res.msg)
+        return composeView ?: ComposeView(requireContext()).also { view ->
+            view.setContent {
+                MusicTheme {
+                    PhoneLoginScreen(
+                        viewModel = viewModel,
+                        onLoginSuccess = { setResultAndFinish() },
+                        onSwitchQrcode = {
+                            activity?.apply {
+                                setResult(LoginRouteFragment.RESULT_SWITCH_QRCODE)
+                                finish()
+                            }
+                        },
+                        onMessage = { ToastUtils.show(it) }
+                    )
                 }
             }
-        }
-        viewBinding.btnLogin.setOnClickListener {
-            val phone = viewBinding.etPhone.text?.toString()
-            if (phone.isNullOrEmpty()) {
-                ToastUtils.show("请输入手机号")
-                return@setOnClickListener
-            }
-            val code = viewBinding.etPhoneCode.text?.toString()
-            if (code.isNullOrEmpty()) {
-                ToastUtils.show("请输入手机验证码")
-                return@setOnClickListener
-            }
-            lifecycleScope.launch {
-                showLoading(false)
-                val res = viewModel.phoneLogin(phone, code)
-                dismissLoading()
-                if (res.isSuccess()) {
-                    ToastUtils.show("登录成功")
-                    setResultAndFinish()
-                } else {
-                    ToastUtils.show(res.msg.orEmpty().ifEmpty {
-                        "登录失败，请更新服务端版本或稍后重试"
-                    })
-                }
-            }
-        }
-        viewBinding.tvQrcodeLogin.setOnClickListener {
-            activity?.apply {
-                setResult(LoginRouteFragment.RESULT_SWITCH_QRCODE)
-                finish()
-            }
+            composeView = view
         }
     }
 
-    private fun initDataObserver() {
-        lifecycleScope.launch {
-            viewModel.sendPhoneCodeCountdown.collectLatest { sendPhoneCodeCountdown ->
-                if (sendPhoneCodeCountdown > 0) {
-                    viewBinding.tvSendCode.isEnabled = false
-                    viewBinding.tvSendCode.text = "${sendPhoneCodeCountdown}秒后重发"
-                } else {
-                    viewBinding.tvSendCode.isEnabled = true
-                    viewBinding.tvSendCode.text = "获取验证码"
-                }
-            }
-        }
+    override fun isLazy(): Boolean {
+        return false
     }
 }

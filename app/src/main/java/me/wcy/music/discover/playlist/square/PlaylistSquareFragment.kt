@@ -1,21 +1,23 @@
 package me.wcy.music.discover.playlist.square
 
-import android.os.Bundle
 import android.view.View
+import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import me.wcy.music.R
 import me.wcy.music.common.BaseMusicFragment
+import me.wcy.music.common.bean.SongData
+import me.wcy.music.compose.theme.MusicTheme
+import me.wcy.music.compose.ui.PlaylistSquareScreen
 import me.wcy.music.consts.RoutePath
-import me.wcy.music.databinding.FragmentPlaylistSpuareBinding
+import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.discover.playlist.square.viewmodel.PlaylistSquareViewModel
+import me.wcy.music.service.PlayerController
+import me.wcy.music.utils.toMediaItem
+import me.wcy.router.CRouter
 import me.wcy.router.annotation.Route
-import top.wangchenyan.common.ext.getColor
-import top.wangchenyan.common.ext.viewBindings
-import top.wangchenyan.common.widget.pager.TabLayoutPager
+import javax.inject.Inject
 
 /**
  * Created by wangchenyan.top on 2023/9/26.
@@ -23,70 +25,45 @@ import top.wangchenyan.common.widget.pager.TabLayoutPager
 @Route(RoutePath.PLAYLIST_SQUARE)
 @AndroidEntryPoint
 class PlaylistSquareFragment : BaseMusicFragment() {
-    private val viewBinding by viewBindings<FragmentPlaylistSpuareBinding>()
     private val viewModel by viewModels<PlaylistSquareViewModel>()
-    private var pager: TabLayoutPager? = null
+    private var composeView: ComposeView? = null
+
+    @Inject
+    lateinit var playerController: PlayerController
 
     override fun getRootView(): View {
-        return viewBinding.root
-    }
-
-    override fun isUseLoadSir(): Boolean {
-        return true
-    }
-
-    override fun getLoadSirTarget(): View {
-        return viewBinding.content
-    }
-
-    override fun onReload() {
-        super.onReload()
-        loadTagList()
-    }
-
-    override fun onLazyCreate() {
-        super.onLazyCreate()
-
-        configWindowInsets {
-            navBarColor = getColor(R.color.play_bar_bg)
-        }
-
-        initTab()
-        loadTagList()
-    }
-
-    private fun initTab() {
-        lifecycleScope.launch {
-            viewModel.tagList.collectLatest { tagList ->
-                if (tagList.isNotEmpty() && pager == null) {
-                    pager = TabLayoutPager(
-                        lifecycle,
-                        childFragmentManager,
-                        viewBinding.viewPage2,
-                        viewBinding.tabLayout
-                    ).apply {
-                        tagList.forEach { tag ->
-                            addFragment(PlaylistTabFragment().apply {
-                                arguments = Bundle().apply {
-                                    putString("tag", tag)
-                                }
-                            }, tag)
+        return composeView ?: ComposeView(requireContext()).also { view ->
+            view.setContent {
+                MusicTheme {
+                    PlaylistSquareScreen(
+                        viewModel = viewModel,
+                        onBack = { finish() },
+                        onOpenPlaylistDetail = { id ->
+                            CRouter.with(requireActivity())
+                                .url(RoutePath.PLAYLIST_DETAIL)
+                                .extra("id", id)
+                                .start()
+                        },
+                        onPlayPlaylist = { playlist ->
+                            playPlaylist(playlist.id)
                         }
-                        setup()
-                    }
+                    )
                 }
             }
+            composeView = view
         }
     }
 
-    private fun loadTagList() {
+    private fun playPlaylist(playlistId: Long) {
         lifecycleScope.launch {
-            showLoadSirLoading()
-            val res = viewModel.loadTagList()
-            if (res.isSuccess()) {
-                showLoadSirSuccess()
-            } else {
-                showLoadSirError(res.msg)
+            kotlin.runCatching {
+                DiscoverNet.getFullPlaylistSongList(playlistId)
+            }.onSuccess { songListData ->
+                if (songListData.code == 200 && songListData.songs.isNotEmpty()) {
+                    val songs = songListData.songs.map { it.toMediaItem() }
+                    playerController.replaceAll(songs, songs.first())
+                    CRouter.with(requireContext()).url(RoutePath.PLAYING).start()
+                }
             }
         }
     }

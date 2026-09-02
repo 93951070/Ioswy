@@ -1,20 +1,23 @@
 package me.wcy.music.account.login.qrcode
 
 import android.view.View
-import androidx.core.view.isVisible
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import cn.bertsir.zbar.utils.QRUtils
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import top.wangchenyan.common.ext.viewBindings
-import me.wcy.music.account.bean.LoginResultData
 import me.wcy.music.account.login.LoginRouteFragment
-import me.wcy.music.account.service.UserService
 import me.wcy.music.common.BaseMusicFragment
+import me.wcy.music.compose.theme.MusicTheme
+import me.wcy.music.compose.ui.QrcodeLoginScreen
 import me.wcy.music.consts.RoutePath
-import me.wcy.music.databinding.FragmentQrcodeLoginBinding
+import me.wcy.music.shared.account.UserSession
 import me.wcy.router.annotation.Route
+import top.wangchenyan.common.utils.ToastUtils
 import javax.inject.Inject
 
 /**
@@ -23,97 +26,45 @@ import javax.inject.Inject
 @Route(RoutePath.QRCODE_LOGIN)
 @AndroidEntryPoint
 class QrcodeLoginFragment : BaseMusicFragment() {
-    private val viewBinding by viewBindings<FragmentQrcodeLoginBinding>()
-    private val viewModel by viewModels<QrcodeLoginViewModel>()
+    private val viewModel by viewModels<QrcodeLoginViewModel> {
+        viewModelFactory {
+            initializer {
+                QrcodeLoginViewModel(userSession)
+            }
+        }
+    }
+    private var composeView: ComposeView? = null
 
     @Inject
-    lateinit var userService: UserService
+    lateinit var userSession: UserSession
 
     override fun getRootView(): View {
-        return viewBinding.root
-    }
-
-    override fun onLazyCreate() {
-        super.onLazyCreate()
-
-        viewBinding.tvPhoneLogin.setOnClickListener {
-            activity?.apply {
-                setResult(LoginRouteFragment.RESULT_SWITCH_PHONE)
-                finish()
-            }
-        }
-
-        loadQrCode()
-
-        lifecycleScope.launch {
-            viewModel.loginStatus.collectLatest { status ->
-                viewBinding.tvStatus.setOnClickListener(null)
-                if (status == null) {
-                    viewBinding.tvStatus.isVisible = true
-                    viewBinding.tvStatus.text = "加载中…"
-                } else {
-                    when (status.code) {
-                        LoginResultData.STATUS_NOT_SCAN -> {
-                            viewBinding.tvStatus.isVisible = false
-                        }
-
-                        LoginResultData.STATUS_SCANNING -> {
-                            viewBinding.tvStatus.isVisible = true
-                            viewBinding.tvStatus.text = "「${status.nickname}」授权中"
-                        }
-
-                        LoginResultData.STATUS_SUCCESS -> {
-                            viewBinding.tvStatus.isVisible = true
-                            viewBinding.tvStatus.text = status.message
-                            getProfile(status.cookie)
-                        }
-
-                        LoginResultData.STATUS_INVALID -> {
-                            viewBinding.tvStatus.isVisible = true
-                            viewBinding.tvStatus.text = "二维码已失效，点击刷新"
-                            viewBinding.tvStatus.setOnClickListener {
-                                loadQrCode()
-                            }
-                        }
-
-                        else -> {
-                            viewBinding.tvStatus.isVisible = true
-                            viewBinding.tvStatus.text =
-                                status.message.ifEmpty { "二维码错误，点击刷新" }
-                            viewBinding.tvStatus.setOnClickListener {
-                                loadQrCode()
-                            }
-                        }
+        return composeView ?: ComposeView(requireContext()).also { view ->
+            view.setContent {
+                MusicTheme {
+                    val qrUrl by viewModel.qrUrl.collectAsState()
+                    val qrCodeImage = qrUrl?.let { url ->
+                        QRUtils.getInstance().createQRCode(url)?.asImageBitmap()
                     }
+                    QrcodeLoginScreen(
+                        viewModel = viewModel,
+                        qrCodeImage = qrCodeImage,
+                        onLoginSuccess = { setResultAndFinish() },
+                        onSwitchPhone = {
+                            activity?.apply {
+                                setResult(LoginRouteFragment.RESULT_SWITCH_PHONE)
+                                finish()
+                            }
+                        },
+                        onMessage = { ToastUtils.show(it) }
+                    )
                 }
             }
-        }
-
-        lifecycleScope.launch {
-            viewModel.qrCode.collectLatest { qrCode ->
-                viewBinding.ivQrCode.setImageBitmap(qrCode)
-            }
+            composeView = view
         }
     }
 
-    private fun loadQrCode() {
-        lifecycleScope.launch {
-            viewModel.getLoginQrCode()
-        }
-    }
-
-    private fun getProfile(cookie: String) {
-        lifecycleScope.launch {
-            val res = userService.login(cookie)
-            if (res.isSuccessWithData()) {
-                setResultAndFinish()
-            } else {
-                viewBinding.tvStatus.isVisible = true
-                viewBinding.tvStatus.text = "登录失败，点击重试"
-                viewBinding.tvStatus.setOnClickListener {
-                    loadQrCode()
-                }
-            }
-        }
+    override fun isLazy(): Boolean {
+        return false
     }
 }

@@ -1,0 +1,54 @@
+name: iOS Build (ipa)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'shared/**'
+      - 'iosApp/**'
+      - '.github/workflows/ios-build.yml'
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build shared framework
+        run: ./gradlew :shared:linkReleaseFrameworkIosArm64 --no-daemon
+
+      - name: Build app archive
+        run: |
+          xcodebuild -project iosApp/iosApp.xcodeproj \
+            -target iosApp \
+            -configuration Release \
+            -sdk iphoneos \
+            build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CONFIGURATION_BUILD_DIR=build/Release-iphoneos
+
+      - name: Package unsigned ipa
+        run: |
+          mkdir -p build/Payload
+          cp -R build/Release-iphoneos/iosApp.app build/Payload/
+          cd build
+          zip -qry ponymusic-unsigned.ipa Payload
+          ls -lh ponymusic-unsigned.ipa
+
+      - name: Upload ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ponymusic-unsigned-ipa
+          path: build/ponymusic-unsigned.ipa

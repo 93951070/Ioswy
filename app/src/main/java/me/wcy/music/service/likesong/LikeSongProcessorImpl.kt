@@ -6,9 +6,9 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import me.wcy.music.account.service.UserService
-import me.wcy.music.mine.MineApi
+import me.wcy.music.shared.net.MineNet
 import top.wangchenyan.common.model.CommonResult
-import top.wangchenyan.common.net.apiCall
+import me.wcy.music.shared.net.apiCall
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,7 +37,7 @@ class LikeSongProcessorImpl @Inject constructor(
         if (userService.isLogin().not()) return
         launch {
             val res = runCatching {
-                MineApi.get().getMyLikeSongList(userService.getUserId())
+                MineNet.getMyLikeSongList(userService.getUserId())
             }
             val data = res.getOrNull()
             if (data?.code == 200) {
@@ -62,7 +62,7 @@ class LikeSongProcessorImpl @Inject constructor(
         val isLike = isLiked(id)
         if (isLike) {
             val res = apiCall {
-                MineApi.get().likeSong(id, false)
+                MineNet.likeSong(id, false)
             }
             return if (res.isSuccess()) {
                 likeSongSet.remove(id)
@@ -73,7 +73,7 @@ class LikeSongProcessorImpl @Inject constructor(
             }
         } else {
             val res = apiCall {
-                MineApi.get().likeSong(id, true)
+                MineNet.likeSong(id, true)
             }
             return if (res.isSuccess()) {
                 likeSongSet.add(id)

@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.core.os.bundleOf
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import me.wcy.music.common.bean.AlbumData
+import me.wcy.music.common.bean.ArtistData
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.storage.db.entity.SongEntity
 import me.wcy.music.utils.MusicUtils.asLargeCover
@@ -102,6 +104,25 @@ fun MediaItem.getSongType(): Int {
 
 fun MediaItem.getSongId(): Long {
     return mediaId.split("#").getOrNull(1)?.toLongOrNull() ?: 0L
+}
+
+fun MediaItem.toSongData(): SongData {
+    return SongData(
+        id = getSongId(),
+        name = mediaMetadata.title?.toString() ?: "",
+        ar = listOf(
+            ArtistData(
+                id = 0,
+                name = mediaMetadata.artist?.toString() ?: ""
+            )
+        ),
+        al = AlbumData(
+            id = 0,
+            name = mediaMetadata.albumTitle?.toString() ?: "",
+            picUrl = mediaMetadata.getBaseCover() ?: ""
+        ),
+        dt = mediaMetadata.getDuration()
+    )
 }
 
 fun MediaMetadata.Builder.setDuration(duration: Long) = apply {

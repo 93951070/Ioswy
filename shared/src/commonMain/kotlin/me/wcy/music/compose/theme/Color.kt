@@ -1,0 +1,25 @@
+package me.wcy.music.compose.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Red500 = Color(0xFFF44336)
+val Red700 = Color(0xFFD32F2F)
+val Red500P30 = Color(0x4CF44336)
+val WhiteP96 = Color(0xF5FFFFFF)
+val Blue = Color(0xFF2196F3)
+val Grey = Color(0xFF9E9E9E)
+val GreyP50 = Color(0x809E9E9E)
+val Grey100 = Color(0xFFE5E5E5)
+val Grey300 = Color(0xFFE0E0E0)
+val Grey700P96 = Color(0xF5616161)
+val Grey800 = Color(0xFF424242)
+val Grey900 = Color(0xFF212121)
+
+val TextH1 = Color(0xFF202020)
+val BackgroudColor = Color(0xFFFAFAFA)
+
+val NightBackground = Color(0xFF303030)
+val NightTextH1 = Color(0xFFFFFFFF)
+val NightTextH2 = Color(0xFF9E9E9E)
+val NightCard = Color(0xFF424242)
+val NightPlayBar = Color(0xFF212121)

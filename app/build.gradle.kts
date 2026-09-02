@@ -80,10 +80,6 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.valueOf(libs.versions.java.get()).toString()
     }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
-    }
 }
 
 fun getLocalValue(key: String): String {
@@ -114,6 +110,10 @@ ksp {
 }
 
 dependencies {
+    implementation(project(":shared"))
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.kotlinx.converter)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.appcompat)
     implementation(libs.constraintlayout)
     implementation(libs.material)
@@ -129,6 +129,23 @@ dependencies {
     implementation(libs.room)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt)
+
+    // Compose
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.material.icons)
+    implementation(libs.compose.runtime)
+    implementation(libs.compose.livedata)
+    implementation(libs.compose.animation)
+    implementation(libs.compose.activity)
+    debugImplementation(libs.compose.ui.tooling)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.navigation.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
+    implementation(libs.coil.compose)
 
     if (File("${project.projectDir}/google-services.json").exists()) {
         println("Enable gms in app dependencies")
@@ -146,4 +163,5 @@ dependencies {
     implementation(libs.zbar)
     implementation(libs.blurry)
     implementation(libs.banner)
+    compileOnly(libs.errorprone)
 }

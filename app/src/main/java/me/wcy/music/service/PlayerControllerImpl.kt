@@ -144,7 +144,7 @@ class PlayerControllerImpl(
                 if (player.isPlaying) {
                     _playProgress.value = player.currentPosition
                 }
-                delay(1000)
+                delay(200)
             }
         }
     }
@@ -269,7 +269,13 @@ class PlayerControllerImpl(
     @MainThread
     override fun next() {
         if (player.mediaItemCount == 0) return
-        player.seekToNextMediaItem()
+        if (player.repeatMode == Player.REPEAT_MODE_ONE) {
+            // 单曲循环下 seekToNextMediaItem 会重复当前歌，手动切
+            val index = player.currentMediaItemIndex
+            player.seekTo(if (index + 1 < player.mediaItemCount) index + 1 else 0, 0)
+        } else {
+            player.seekToNextMediaItem()
+        }
         player.prepare()
         _playProgress.value = 0
         _bufferingPercent.value = 0
@@ -278,7 +284,12 @@ class PlayerControllerImpl(
     @MainThread
     override fun prev() {
         if (player.mediaItemCount == 0) return
-        player.seekToPreviousMediaItem()
+        if (player.repeatMode == Player.REPEAT_MODE_ONE) {
+            val index = player.currentMediaItemIndex
+            player.seekTo(if (index > 0) index - 1 else player.mediaItemCount - 1, 0)
+        } else {
+            player.seekToPreviousMediaItem()
+        }
         player.prepare()
         _playProgress.value = 0
         _bufferingPercent.value = 0
@@ -288,6 +299,7 @@ class PlayerControllerImpl(
     override fun seekTo(msec: Int) {
         if (player.playbackState == Player.STATE_READY) {
             player.seekTo(msec.toLong())
+            _playProgress.value = msec.toLong()
         }
     }
 

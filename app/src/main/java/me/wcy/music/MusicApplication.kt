@@ -3,6 +3,10 @@ package me.wcy.music
 import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
+import android.os.Environment
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.blankj.utilcode.util.ActivityUtils
@@ -38,6 +42,19 @@ class MusicApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        Thread.setDefaultUncaughtExceptionHandler { _, throwable ->
+            try {
+                val dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS) ?: filesDir
+                val sw = StringWriter()
+                throwable.printStackTrace(PrintWriter(sw))
+                val file = File(dir, "crash.log")
+                file.writeText("PONYCRASH " + java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date()) + "\n" + sw.toString())
+            } catch (_: Throwable) {
+            }
+            android.os.Process.killProcess(android.os.Process.myPid())
+            System.exit(10)
+        }
 
         CommonApp.init {
             test = BuildConfig.DEBUG
