@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -188,11 +189,14 @@ fun HeartTab(
                         onEmptyTap = { heartShowLrc.value = false }
                     )
                 } else if (song != null) {
+                    // 唱片保持正方形（aspectRatio），防止父容器高度不足时被竖向压扁成椭圆
                     VinylCover(
                         coverUrl = song.al.getLargeCover(),
                         isPlaying = isPlaying,
                         onClick = { heartShowLrc.value = true },
-                        modifier = Modifier.size(280.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
                     )
                 }
             }

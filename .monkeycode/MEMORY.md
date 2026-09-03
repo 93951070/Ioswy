@@ -133,4 +133,15 @@ Entries discovered by the Agent during task execution should follow this format:
 - Instructions:
   - user/record 接口字段名与内容错位：type=0 时周数据放在 allData 键，type=1 时累计数据放在 weekData 键——解析时按 type 反读，勿按字段名直觉取
   - 本地 NeteaseCloudMusicApi 无 play/record 路由（404），最近播放歌曲记录只有 user/record
+  - playListListData bean 的顶层键差异：/user/playlist（我的歌单）返回 playlist 单数，/top/playlist（歌单广场）返回 playlists 复数，/toplist 返回 list——bean 需同时兼容三键（用 all getter 兜底）
+
+[Project Knowledge Summary]
+- Date: 2026-09-03
+- Context: 排查「喜欢的音乐」歌单详情页开很久才出数据时 curl 实测发现
+- Category: Troubleshooting & Debugging | Environment Configuration
+- Instructions:
+  - /playlist/detail 对「我喜欢的音乐」歌单也会返回完整 tracks（SongData 列表），且 trackCount 不等于 tracks.size（差了重复排序），tracks 才是全量
+  - 喜欢音乐/大歌单详情加载慢的根因：PlaylistViewModel.loadData 先拿 detail 再跑 getFullPlaylistSongList（分页循环 /playlist/track/all limit=800）串行后才设 state，整个页面等慢接口。isLike 时可直接用 detail.playlist.tracks 跳过第二次分页拉取
+  - 分页拉全量接口用 SongListData.songs 判空停止；limit=800 一页，offset=累计 size
+  - 应用重启首请求易遇一次性网络未就绪失败：MineViewModel.updatePlaylist 用 repeat(2)+delay(1200) 兜底重试一次，避免「重启须点一下才加载」
 

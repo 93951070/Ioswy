@@ -50,16 +50,21 @@ class PlaylistViewModel(
         if (detail == null || detail.code != 200) {
             return NetResult(code = -1, msg = detailRes.exceptionOrNull()?.message)
         }
-        val timestamp = if (realtimeData) SharedNet.currentTimeMillis() else null
-        val songListRes = kotlin.runCatching {
-            DiscoverNet.getFullPlaylistSongList(playlistId, timestamp = timestamp)
-        }
-        val songListData = songListRes.getOrNull()
-        if (songListData == null || songListData.code != 200) {
-            return NetResult(code = -1, msg = songListRes.exceptionOrNull()?.message)
-        }
         _playlistData.value = detail.playlist
-        _songList.value = songListData.songs
+        val songs = if (isLike && detail.playlist.tracks.isNotEmpty()) {
+            detail.playlist.tracks
+        } else {
+            val timestamp = if (realtimeData) SharedNet.currentTimeMillis() else null
+            val songListRes = kotlin.runCatching {
+                DiscoverNet.getFullPlaylistSongList(playlistId, timestamp = timestamp)
+            }
+            val songListData = songListRes.getOrNull()
+            if (songListData == null || songListData.code != 200) {
+                return NetResult(code = -1, msg = songListRes.exceptionOrNull()?.message)
+            }
+            songListData.songs
+        }
+        _songList.value = songs
         fetchMyUserId()
         return NetResult(code = 200)
     }

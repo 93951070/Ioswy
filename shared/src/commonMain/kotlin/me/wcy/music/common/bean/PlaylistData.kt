@@ -40,6 +40,8 @@ data class PlaylistData(
     val updateFrequency: String = "",
     @SerialName("ToplistType")
     val toplistType: String = "",
+    @SerialName("tracks")
+    val tracks: List<SongData> = emptyList(),
 ) {
     @SerialName("_songList")
     var songList: List<SongData> = emptyList()

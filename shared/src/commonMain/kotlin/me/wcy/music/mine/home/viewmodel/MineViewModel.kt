@@ -3,6 +3,7 @@ package me.wcy.music.mine.home.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import me.wcy.music.account.bean.ProfileData
 import me.wcy.music.common.bean.PlaylistData
+import me.wcy.music.discover.playlist.square.bean.PlaylistListData
 import me.wcy.music.shared.net.MineNet
 import me.wcy.music.shared.net.NetResult
 import me.wcy.music.shared.net.apiCall
@@ -64,10 +66,14 @@ class MineViewModel(
     private fun updatePlaylist(uid: Long) {
         updateJob?.cancel()
         updateJob = viewModelScope.launch {
-            val res = kotlin.runCatching {
-                MineNet.getUserPlaylist(uid)
+            // ponytail: 启动首请求可能遇一次性网络失败，重试一次吸收该竞态
+            var data: PlaylistListData? = null
+            repeat(2) { attempt ->
+                val res = kotlin.runCatching { MineNet.getUserPlaylist(uid) }
+                data = res.getOrNull()
+                if (data != null && data.code == 200) return@repeat
+                if (attempt == 0) delay(1200)
             }
-            val data = res.getOrNull()
             if (data != null && data.code == 200) {
                 _playlistFailed.value = false
                 notifyPlaylist(uid, data.all)
