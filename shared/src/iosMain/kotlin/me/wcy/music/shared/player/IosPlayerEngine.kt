@@ -111,7 +111,8 @@ class IosPlayerEngine : PlayerEngine {
                 _playProgress.value = if (timescale != 0) value * 1000 / timescale else 0
             }
             player.currentItem?.duration?.useContents {
-                _duration.value = if (timescale != 0 && isNumeric) (value * 1000 / timescale).toLong() else 0L
+                // timescale=0 即无效时长（kCMTimeInvalid/ indefinite）
+                _duration.value = if (timescale != 0) (value * 1000 / timescale).toLong() else 0L
             }
             _isPlaying.value = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
             _bufferingPercent.value = when (player.currentItem?.status) {
@@ -342,8 +343,9 @@ class IosPlayerEngine : PlayerEngine {
             put(MPNowPlayingInfoPropertyElapsedPlaybackTime, NSNumber(elapsed))
             put(MPNowPlayingInfoPropertyPlaybackRate, NSNumber(if (_isPlaying.value) 1.0 else 0.0))
             // 锁屏/控制中心歌名下方小字显示当前歌词行（桌面歌词后台化的系统层近似）
+            // MPMediaItemPropertySubtitle 常量 K/N 未导出，字面值即 "subtitle"
             nowPlayingSubtitle?.takeIf { it.isNotBlank() }?.let {
-                put(MPMediaItemPropertySubtitle, it)
+                put("subtitle", it)
             }
         }
         MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = info
