@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -354,11 +355,9 @@ fun MineScreen(
             }
             item {
                 if (like != null) {
-                    PlaylistRow(
-                        playlists = listOf(like),
-                        onItemClick = { playlist ->
-                            onOpenPlaylistDetail(playlist, false, true)
-                        }
+                    LikePlaylistCard(
+                        playlist = like,
+                        onClick = { onOpenPlaylistDetail(like, false, true) }
                     )
                 } else {
                     PlaylistEmptyHint(
@@ -405,7 +404,7 @@ fun MineScreen(
             }
         }
 
-        if (profile != null && (collectPlaylists.isNotEmpty() || myPlaylists.isNotEmpty())) {
+        if (profile != null) {
             item {
                 SectionTitle("我的收藏(${collectPlaylists.size})")
             }
@@ -669,6 +668,63 @@ private fun MenuCardRow(
             imageVector = Icons.Filled.ChevronRight,
             contentDescription = "进入",
             tint = AppThemeColor.TextH2,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+@Composable
+private fun LikePlaylistCard(
+    playlist: PlaylistData,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        Color(0xFFEC4141).copy(alpha = 0.85f),
+                        Color(0xFF9C4DB8).copy(alpha = 0.85f)
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Star,
+            contentDescription = "我喜欢的音乐",
+            tint = Color.White,
+            modifier = Modifier.size(40.dp)
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            Text(
+                text = playlist.name,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "${playlist.trackCount}首 · 点击播放全部",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+        Icon(
+            imageVector = Icons.Filled.ChevronRight,
+            contentDescription = "进入",
+            tint = Color.White.copy(alpha = 0.8f),
             modifier = Modifier.size(20.dp)
         )
     }

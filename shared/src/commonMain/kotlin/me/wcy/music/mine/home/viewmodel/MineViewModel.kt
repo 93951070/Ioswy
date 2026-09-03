@@ -70,8 +70,8 @@ class MineViewModel(
             val data = res.getOrNull()
             if (data != null && data.code == 200) {
                 _playlistFailed.value = false
-                notifyPlaylist(uid, data.playlists)
-                writePlaylistCache(data.playlists)
+                notifyPlaylist(uid, data.all)
+                writePlaylistCache(data.all)
             } else {
                 _playlistFailed.value = _likePlaylist.value == null && _myPlaylists.value.isEmpty()
             }
