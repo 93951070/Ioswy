@@ -6,9 +6,10 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.io.buffered
-import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
+import okio.FileSystem
+import okio.Path.Companion.toPath
+import okio.buffer
+import okio.use
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.SharedNet
@@ -53,9 +54,34 @@ suspend fun downloadSong(song: SongData, onMessage: (String) -> Unit) {
             filename = "${safeFileName(artist)} - ${safeFileName(song.name)}.mp3",
             onDone = { _, msg -> onMessage(msg) }
         )
+        // 顺手写同名歌词文件（按纯歌名命名，本地播放时直接命中），失败不影响下载结果
+        runCatching {
+            val lrc = DiscoverNet.getLrc(song.id)
+            if (lrc.code == 200 && lrc.lrc.isValid()) {
+                FileSystem.SYSTEM.sink("${downloadDir()}/${safeFileName(song.name)}.lrc".toPath())
+                    .buffer().use { it.writeUtf8(lrc.lrc.lyric) }
+            }
+        }
     } finally {
         downloading = false
     }
+}
+
+/** 读本地同名歌词文件（下载时写入），无则 null */
+fun loadLocalLrc(songName: String): String? {
+    val path = "${downloadDir()}/${safeFileName(songName)}.lrc".toPath()
+    return runCatching {
+        if (!FileSystem.SYSTEM.exists(path)) return@runCatching null
+        FileSystem.SYSTEM.source(path).buffer().use { it.readUtf8() }
+    }.getOrNull()?.takeIf { it.isNotBlank() }
+}
+
+/** 统一歌词拉取：本地文件优先，网络兜底；null = 无歌词 */
+suspend fun fetchLyrics(song: SongData): String? {
+    if (song.id <= 0) return loadLocalLrc(song.name)
+    return loadLocalLrc(song.name) ?: runCatching {
+        DiscoverNet.getLrc(song.id).takeIf { it.code == 200 && it.lrc.isValid() }?.lrc?.lyric
+    }.getOrNull()
 }
 
 private const val CHUNK = 256 * 1024
@@ -64,11 +90,11 @@ private const val CHUNK = 256 * 1024
 // ponytail: 全量入内存（单曲 5-10MB 可接受），要支持大文件/进度再改逐块流式
 suspend fun downloadToFile(url: String, filename: String, onDone: (Boolean, String) -> Unit) {
     val ok = runCatching {
-        val path = Path(downloadDir(), filename)
+        val path = "${downloadDir()}/$filename".toPath()
         val response = SharedNet.client.get(url)
         check(response.status == HttpStatusCode.OK) { "HTTP ${response.status}" }
         val bytes = response.readRawBytes()
-        SystemFileSystem.sink(path).buffered().use { out -> out.write(bytes) }
+        FileSystem.SYSTEM.sink(path).buffer().use { it.write(bytes) }
     }.isSuccess
     onDone(ok, if (ok) "已下载到本地音乐" else "下载失败")
 }

@@ -82,8 +82,6 @@ fun MineScreen(
     onOpenCloudDisk: () -> Unit,
     onOpenMsgCenter: () -> Unit,
     onOpenPlaylistDetail: (PlaylistData, Boolean, Boolean) -> Unit,
-    signedToday: Boolean,
-    onSignin: () -> Unit,
     onMessage: (String) -> Unit = {},
     onOpenImport: () -> Unit = {},
 ) {
@@ -92,7 +90,6 @@ fun MineScreen(
     val myPlaylists by viewModel.myPlaylists.collectAsState()
     val collectPlaylists by viewModel.collectPlaylists.collectAsState()
     val scope = rememberCoroutineScope()
-    val signedIn = signedToday
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var newPlaylistDesc by remember { mutableStateOf("") }
@@ -332,18 +329,12 @@ fun MineScreen(
                 nickname = profile?.nickname ?: "",
                 signature = profile?.signature ?: "",
                 level = userLevel?.level,
-                signedIn = signedIn,
-                onSignin = onSignin,
                 onOpenLogin = onOpenLogin
             )
         }
 
         item {
             MenuCardList(
-                signedIn = signedIn,
-                onSignin = {
-                    if (!signedIn) onSignin()
-                },
                 onOpenRecentPlay = onOpenRecentPlay,
                 onOpenSubList = onOpenSubList,
                 onOpenCloudDisk = onOpenCloudDisk,
@@ -465,8 +456,6 @@ private fun ProfileHeader(
     nickname: String,
     signature: String,
     level: Int?,
-    signedIn: Boolean,
-    onSignin: () -> Unit,
     onOpenLogin: () -> Unit
 ) {
     if (isLoggedIn) {
@@ -523,19 +512,6 @@ private fun ProfileHeader(
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(if (signedIn) AppThemeColor.TextH2 else AppThemeColor.ThemeColor)
-                    .clickable(enabled = !signedIn, onClick = onSignin)
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = if (signedIn) "已签到" else "签到",
-                    color = Color.White,
-                    fontSize = 13.sp
-                )
-            }
         }
     } else {
         Row(
@@ -566,8 +542,6 @@ private fun ProfileHeader(
 
 @Composable
 private fun MenuCardList(
-    signedIn: Boolean,
-    onSignin: () -> Unit,
     onOpenRecentPlay: () -> Unit,
     onOpenSubList: () -> Unit,
     onOpenCloudDisk: () -> Unit,
@@ -583,12 +557,6 @@ private fun MenuCardList(
             .clip(RoundedCornerShape(16.dp))
             .background(AppThemeColor.Card)
     ) {
-        MenuCardRow(
-            icon = Icons.Filled.DateRange,
-            title = "每日签到",
-            subtitle = if (signedIn) "今日已签" else "点击签到",
-            onClick = onSignin
-        )
         MenuCardRow(
             icon = Icons.Filled.Leaderboard,
             title = "听歌排行",

@@ -130,11 +130,6 @@ fun MainScreen(
                     onOpenMsgCenter = onOpenMsgCenter,
                     onOpenPlaylistDetail = { playlist, realtime, like ->
                         onOpenPlaylistDetail(playlist.id)
-                    },
-                    signedToday = ConfigPreferences.signDate == todayString(),
-                    onSignin = {
-                        ConfigPreferences.signDate = todayString()
-                        toast(context, "签到成功，今日已签")
                     }
                 )
             }

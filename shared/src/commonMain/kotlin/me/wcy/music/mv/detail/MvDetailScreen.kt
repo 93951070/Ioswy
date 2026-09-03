@@ -1,16 +1,9 @@
 package me.wcy.music.mv.detail
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.StartOffset
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -18,17 +11,18 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -42,17 +36,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import me.wcy.music.compose.component.CoverImage
+import me.wcy.music.compose.component.DanmakuBar
+import me.wcy.music.compose.component.DanmakuOverlay
 import me.wcy.music.compose.ui.CommentPanel
 import me.wcy.music.compose.ui.TitleBar
 import me.wcy.music.compose.theme.AppThemeColor
@@ -99,10 +90,25 @@ fun MvDetailScreen(
         danmaku = loadDanmaku(mvid)
     }
 
+    // 发送弹幕 = 发评论（comment 接口 type=1，与评论面板一致），成功乐观插到弹幕池头部
+    val onSendDanmaku: (String) -> Unit = { content ->
+        scope.launch {
+            val ok = runCatching {
+                DiscoverNet.addComment(mvid.toString(), type = 1, content = content).code == 200
+            }.getOrDefault(false)
+            if (ok) {
+                onMessage("弹幕发送成功")
+                danmaku = listOf(content) + danmaku
+            } else {
+                onMessage("发送失败")
+            }
+        }
+    }
+
     var isFullscreen by remember { mutableStateOf(false) }
 
     if (isFullscreen) {
-        // 全屏：页面内布局切换，只渲染播放器 + 左上角退出按钮，其余内容不渲染
+        // 全屏：页面内布局切换，只渲染播放器 + 左上角退出按钮 + 底部弹幕条，其余内容不渲染
         // ponytail: 全屏切换会重建播放器（进度从头播）；要保进度需把 player 提升为跨布局共享状态
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             MvPlayerArea(
@@ -111,18 +117,31 @@ fun MvDetailScreen(
                 onToggleFullscreen = { isFullscreen = false },
                 danmaku = danmaku,
                 danmakuOn = danmakuOn,
-                onToggleDanmaku = { danmakuOn = !danmakuOn },
                 modifier = Modifier.fillMaxSize()
             )
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "退出全屏",
-                tint = Color.White,
+            IconButton(
+                onClick = { isFullscreen = false },
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(12.dp)
-                    .size(28.dp)
-                    .clickable { isFullscreen = false }
+                    .statusBarsPadding()
+                    .padding(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "退出全屏",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            DanmakuBar(
+                danmakuOn = danmakuOn,
+                onToggle = { danmakuOn = !danmakuOn },
+                onSend = onSendDanmaku,
+                dark = true,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .navigationBarsPadding()
             )
         }
     } else {
@@ -139,8 +158,13 @@ fun MvDetailScreen(
                         onToggleFullscreen = { isFullscreen = true },
                         danmaku = danmaku,
                         danmakuOn = danmakuOn,
-                        onToggleDanmaku = { danmakuOn = !danmakuOn },
                         modifier = Modifier.fillMaxWidth().height(210.dp)
+                    )
+                    DanmakuBar(
+                        danmakuOn = danmakuOn,
+                        onToggle = { danmakuOn = !danmakuOn },
+                        onSend = onSendDanmaku,
+                        dark = false
                     )
                 } else {
                     MvPlayerCover(cover = mv?.cover ?: "")
@@ -340,8 +364,8 @@ private suspend fun loadRelatedMv(mvid: Long): List<RelatedMv> {
 }
 
 /**
- * 播放器容器：视频层 + 弹幕层（顶部 30% 轨道）+「弹」开关按钮（全屏/非全屏共用）。
- * 弹幕层与开关按钮均为纯绘制/自身点击，其余手势穿透到播放器。
+ * 播放器容器：视频层 + 弹幕层（顶部 30% 轨道）。
+ * 弹幕层为纯绘制，手势穿透到播放器；弹幕开关/输入在播放器外的 DanmakuBar。
  */
 @Composable
 private fun MvPlayerArea(
@@ -350,7 +374,6 @@ private fun MvPlayerArea(
     onToggleFullscreen: () -> Unit,
     danmaku: List<String>,
     danmakuOn: Boolean,
-    onToggleDanmaku: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.background(Color.Black)) {
@@ -369,68 +392,6 @@ private fun MvPlayerArea(
                     .fillMaxHeight(0.3f)
             )
         }
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(end = 12.dp, top = 44.dp)
-                .size(26.dp)
-                .background(
-                    if (danmakuOn) Color(0xFFEC4141) else Color.Black.copy(alpha = 0.35f),
-                    CircleShape
-                )
-                .clickable(onClick = onToggleDanmaku),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "弹", color = Color.White, fontSize = 11.sp)
-        }
-    }
-}
-
-/** 顶部弹幕区：2-3 行轨道，池子不足时行数随之减少 */
-@Composable
-private fun DanmakuOverlay(danmaku: List<String>, modifier: Modifier = Modifier) {
-    val rows = danmaku.chunked(7).take(3)
-    Box(modifier = modifier.clipToBounds()) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceEvenly
-        ) {
-            rows.forEachIndexed { index, row ->
-                DanmakuRow(
-                    text = row.map { it.take(24) }.joinToString("　　　　"),
-                    durationMillis = 16000 + index * 2000,
-                    startOffsetMillis = index * 6000
-                )
-            }
-        }
-    }
-}
-
-/** 单条弹幕轨道：infiniteTransition 驱动文本从右侧匀速平移到左侧循环，各行起始 offset 错开 */
-@Composable
-private fun DanmakuRow(text: String, durationMillis: Int, startOffsetMillis: Int) {
-    val transition = rememberInfiniteTransition(label = "danmaku")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = durationMillis, easing = LinearEasing),
-            initialStartOffset = StartOffset(startOffsetMillis)
-        ),
-        label = "danmaku-progress"
-    )
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val travel = maxWidth
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = 13.sp,
-            maxLines = 1,
-            style = TextStyle(shadow = Shadow(Color.Black, Offset(1f, 1f), blurRadius = 2f)),
-            modifier = Modifier
-                .offset(x = travel)
-                .graphicsLayer { translationX = -(travel.toPx() + size.width) * progress }
-        )
     }
 }
 

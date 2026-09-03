@@ -14,6 +14,9 @@ interface PlayerEngine {
     val playProgress: StateFlow<Long>
     val bufferingPercent: StateFlow<Int>
 
+    /** 当前播放总时长 ms（本地文件/未知时由播放器实测，0 = 未知） */
+    val duration: StateFlow<Long>
+
     /** 0 Loop / 1 Shuffle / 2 Single，UI 层只做循环切换与图标展示 */
     val playMode: StateFlow<Int>
 

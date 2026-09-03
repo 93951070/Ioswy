@@ -137,6 +137,13 @@ actual fun MvPlayerSurface(
     // 全屏 = 真横屏：进入全屏请求 landscapeRight，退出请求 portrait
     LaunchedEffect(isFullscreen) {
         requestInterfaceOrientation(isFullscreen)
+        // ponytail: 1s 轮询防后台切换后系统重置方向，NC 方案以后需要再说
+        if (isFullscreen) {
+            while (isActive) {
+                delay(1000)
+                requestInterfaceOrientation(true)
+            }
+        }
     }
 
     val togglePlay = {
@@ -175,7 +182,8 @@ actual fun MvPlayerSurface(
                 val container = PlayerContainerView()
                 val layer = AVPlayerLayer()
                 layer.player = player
-                layer.videoGravity = AVLayerVideoGravityResizeAspect
+                // AspectFill 铺满容器：横屏宽屏（19.5:9）下 Aspect 会在两侧留边
+                layer.videoGravity = AVLayerVideoGravityResizeAspectFill
                 layer.frame = container.bounds
                 container.layer.addSublayer(layer)
                 container

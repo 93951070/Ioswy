@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -86,11 +87,11 @@ import me.wcy.music.shared.player.PlayerEngine
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayingScreen(
-
-
     playerEngine: PlayerEngine,
     commentViewModel: CommentViewModel,
     onClose: () -> Unit,
+    // embedded=true：作为首页 tab 内嵌使用，跳过状态栏/导航栏 padding（由宿主 HomeTitleBar/PlayBar 处理）
+    embedded: Boolean = false,
     isLiked: (Long) -> Boolean,
     onToggleLike: (Long) -> Unit,
     onShare: (SongData, Long) -> Unit,
@@ -123,7 +124,7 @@ fun PlayingScreen(
     val isPreparing = !isPlaying && buffering > 0
 
     var showLyrics by remember { mutableStateOf(false) }
-    // 封面显示模式：true=黑胶唱片，false=大封面卡片；点封面在两者间切换
+    // 封面显示形态：true=黑胶唱片，false=大封面卡片（点击封面改为切歌词，形态默认黑胶）
     var vinylMode by remember { mutableStateOf(true) }
     var showPlaylistSheet by remember { mutableStateOf(false) }
     var showCommentSheet by remember { mutableStateOf(false) }
@@ -161,7 +162,10 @@ fun PlayingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
+                .then(
+                    if (embedded) Modifier
+                    else Modifier.statusBarsPadding().navigationBarsPadding()
+                )
                 .padding(16.dp)
         ) {
             Row(
@@ -221,6 +225,12 @@ fun PlayingScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (showLyrics) {
+                    // 兜底点击层：点歌词空白区切回封面；歌词行的 seek 点击在面板内自行消费
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { showLyrics = false }
+                    )
                     LyricsPanel(
                         lrcContent = lrcContent,
                         progressMs = playProgress,
@@ -235,13 +245,13 @@ fun PlayingScreen(
                     VinylCover(
                         coverUrl = coverUrl,
                         isPlaying = isPlaying,
-                        onClick = { vinylMode = false },
+                        onClick = { showLyrics = true },
                         modifier = Modifier.size(maxWidth - 100.dp)
                     )
                 } else {
                     CoverCard(
                         coverUrl = coverUrl,
-                        onClick = { vinylMode = true },
+                        onClick = { showLyrics = true },
                         modifier = Modifier.size(maxWidth - 100.dp)
                     )
                 }
@@ -263,6 +273,7 @@ fun PlayingScreen(
                 isPlaying = isPlaying,
                 isPreparing = isPreparing,
                 playProgress = playProgress,
+                engineDuration = playerEngine.duration.collectAsState().value,
                 playMode = playMode,
                 isLiked = isLiked(songId),
                 onSeek = { playerEngine.seekTo(it) },
@@ -457,7 +468,7 @@ private fun CoverCard(
 }
 
 @Composable
-private fun VinylCover(
+internal fun VinylCover(
     coverUrl: String,
     isPlaying: Boolean,
     onClick: () -> Unit,
@@ -565,6 +576,7 @@ private fun ProgressAndControls(
     isLiked: Boolean,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
+    engineDuration: Long,
     onPrev: () -> Unit,
     onNext: () -> Unit,
     onToggleMode: () -> Unit,
@@ -575,7 +587,8 @@ private fun ProgressAndControls(
     onDownload: () -> Unit,
     commentCount: Long
 ) {
-    val duration = song.dt.toFloat().coerceAtLeast(1f)
+    // 本地文件 dt=0，用播放器实测时长兜底
+    val duration = (if (song.dt > 0) song.dt else engineDuration).toFloat().coerceAtLeast(1f)
     val progress = playProgress.toFloat().coerceIn(0f, duration)
     var dragValue by remember { mutableStateOf<Float?>(null) }
     val sliderValue = dragValue ?: progress

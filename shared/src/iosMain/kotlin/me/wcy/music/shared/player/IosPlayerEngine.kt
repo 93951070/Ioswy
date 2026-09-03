@@ -50,6 +50,9 @@ class IosPlayerEngine : PlayerEngine {
     private val _playProgress = MutableStateFlow(0L)
     override val playProgress: StateFlow<Long> = _playProgress.asStateFlow()
 
+    private val _duration = MutableStateFlow(0L)
+    override val duration: StateFlow<Long> = _duration.asStateFlow()
+
     private val _bufferingPercent = MutableStateFlow(0)
     override val bufferingPercent: StateFlow<Int> = _bufferingPercent.asStateFlow()
 
@@ -106,6 +109,9 @@ class IosPlayerEngine : PlayerEngine {
         ) { _ ->
             player.currentTime().useContents {
                 _playProgress.value = if (timescale != 0) value * 1000 / timescale else 0
+            }
+            player.currentItem?.duration?.useContents {
+                _duration.value = if (timescale != 0 && isNumeric) (value * 1000 / timescale).toLong() else 0L
             }
             _isPlaying.value = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
             _bufferingPercent.value = when (player.currentItem?.status) {
@@ -329,15 +335,28 @@ class IosPlayerEngine : PlayerEngine {
             return
         }
         val elapsed = currentElapsedSeconds()
-        val info: Map<Any?, Any?> = mapOf<Any?, Any?>(
-            MPMediaItemPropertyTitle to song.name,
-            MPMediaItemPropertyArtist to song.ar.joinToString("/") { it.name },
-            MPMediaItemPropertyPlaybackDuration to NSNumber(song.dt / 1000.0),
-            MPNowPlayingInfoPropertyElapsedPlaybackTime to NSNumber(elapsed),
-            MPNowPlayingInfoPropertyPlaybackRate to NSNumber(if (_isPlaying.value) 1.0 else 0.0)
-        )
+        val info = buildMap<Any?, Any?> {
+            put(MPMediaItemPropertyTitle, song.name)
+            put(MPMediaItemPropertyArtist, song.ar.joinToString("/") { it.name })
+            put(MPMediaItemPropertyPlaybackDuration, NSNumber(song.dt / 1000.0))
+            put(MPNowPlayingInfoPropertyElapsedPlaybackTime, NSNumber(elapsed))
+            put(MPNowPlayingInfoPropertyPlaybackRate, NSNumber(if (_isPlaying.value) 1.0 else 0.0))
+            // 锁屏/控制中心歌名下方小字显示当前歌词行（桌面歌词后台化的系统层近似）
+            nowPlayingSubtitle?.takeIf { it.isNotBlank() }?.let {
+                put(MPMediaItemPropertySubtitle, it)
+            }
+        }
         MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = info
     }
+
+    /** 系统媒体组件当前歌词行；置 null 清除。更新后立即刷新 nowPlayingInfo */
+    fun updateNowPlayingSubtitle(line: String?) {
+        if (nowPlayingSubtitle == line) return
+        nowPlayingSubtitle = line
+        updateNowPlaying()
+    }
+
+    private var nowPlayingSubtitle: String? = null
 
     private fun currentElapsedSeconds(): Double {
         return player.currentTime().useContents {

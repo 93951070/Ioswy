@@ -75,6 +75,7 @@ import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.compose.component.DesktopLyricsOverlay
 import me.wcy.music.compose.component.PlayBar
+import me.wcy.music.compose.component.currentLrcLine
 import me.wcy.music.compose.component.desktopLyricsOn
 import me.wcy.music.compose.theme.AppThemeColor
 import me.wcy.music.compose.theme.MusicTheme
@@ -110,9 +111,13 @@ import me.wcy.music.shared.account.IosUserSession
 import me.wcy.music.shared.net.DEFAULT_BASE_URL
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.MineNet
+import me.wcy.music.shared.lrc.LrcLine
+import me.wcy.music.shared.lrc.parseLrc
 import me.wcy.music.shared.net.SharedNet
 import me.wcy.music.shared.net.apiCall
 import me.wcy.music.shared.player.IosPlayerEngine
+import me.wcy.music.shared.player.deleteLocalAudio
+import me.wcy.music.shared.player.fetchLyrics
 import me.wcy.music.shared.player.downloadSongAsync
 import me.wcy.music.album.detail.AlbumDetailScreen
 import me.wcy.music.album.detail.viewmodel.AlbumDetailViewModel
@@ -246,9 +251,6 @@ fun IosRoot() {
     var likeSongIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
 
     // 签到状态：按日期本地持久化（上游 daily_signin 返回「功能暂不支持」）
-    var todaySignState by remember {
-        mutableStateOf(NSUserDefaults.standardUserDefaults.stringForKey(KEY_SIGN_DATE) ?: "")
-    }
 
     fun toast(msg: String) {
         message = msg
@@ -452,13 +454,7 @@ fun IosRoot() {
                                 onOpenPlaylistDetail = { playlist, realtimeData, isLike ->
                                     push(IosPage.PlaylistDetail(playlist.id, realtimeData, isLike))
                                 },
-                                onOpenImport = { push(IosPage.ImportPlaylist) },
-                                signedToday = todaySignState == todayString(),
-                                onSignin = {
-                                    NSUserDefaults.standardUserDefaults.setObject(todayString(), forKey = KEY_SIGN_DATE)
-                                    todaySignState = todayString()
-                                    toast("签到成功，今日已签")
-                                }
+                                onOpenImport = { push(IosPage.ImportPlaylist) }
                             )
                         }
                     }
@@ -725,6 +721,21 @@ fun IosRoot() {
                     engine = engine,
                     onOpenPlaying = { push(IosPage.Playing) }
                 )
+            }
+
+            // 系统媒体组件歌词行：当前歌词随进度推到锁屏/控制中心（subtitle 小字）
+            val sysSong = engine.currentSong.collectAsState().value
+            val sysProgress = engine.playProgress.collectAsState().value
+            var sysLrcLines by remember { mutableStateOf(listOf<LrcLine>()) }
+            LaunchedEffect(sysSong?.id) {
+                sysLrcLines = emptyList()
+                engine.updateNowPlayingSubtitle(null)
+                val song = sysSong ?: return@LaunchedEffect
+                val lyric = runCatching { fetchLyrics(song) }.getOrNull() ?: return@LaunchedEffect
+                sysLrcLines = parseLrc(lyric)
+            }
+            LaunchedEffect(sysLrcLines, sysProgress) {
+                engine.updateNowPlayingSubtitle(currentLrcLine(sysLrcLines, sysProgress)?.text)
             }
 
             ToastOverlay(message)
@@ -1009,15 +1020,11 @@ private fun PlayingPage(
     }
 
     LaunchedEffect(currentSong?.id) {
-        val songId = currentSong?.id ?: return@LaunchedEffect
+        val song = currentSong ?: return@LaunchedEffect
         lrcContent = ""
         lrcLabel = "歌词加载中…"
-        val lrc = runCatching { DiscoverNet.getLrc(songId) }.getOrNull()
-        if (lrc != null && lrc.code == 200 && lrc.lrc.isValid()) {
-            lrcContent = lrc.lrc.lyric
-        } else {
-            lrcLabel = "暂无歌词"
-        }
+        lrcContent = fetchLyrics(song) ?: ""
+        if (lrcContent.isBlank()) lrcLabel = "暂无歌词"
     }
 
     PlayingScreen(
@@ -1173,11 +1180,17 @@ private fun LocalMusicTab(
         }
     }
 
+    fun removeSong(song: LocalSongData) {
+        deleteLocalAudio(song.path)
+        songs = songs.filterNot { it.path == song.path }
+    }
+
     LocalMusicScreen(
         songs = songs,
         loaded = loaded,
         onPlaySong = { index -> playAt(index) },
         onPlayAll = { playAt(0) },
+        onDeleteSong = { song -> removeSong(song) },
         onBack = onBack
     )
 }
@@ -1333,8 +1346,6 @@ private fun IosMenuRow(
         )
     }
 }
-
-private const val KEY_SIGN_DATE = "ios_sign_date"
 
 private fun todayString(): String =
     kotlinx.datetime.Clock.System.now().toString().take(10)

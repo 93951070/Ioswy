@@ -42,6 +42,13 @@ class PlayerEngineBridge @Inject constructor(
     override val playProgress: StateFlow<Long> =
         pc.playProgress.stateIn(scope, SharingStarted.Eagerly, 0L)
 
+    // 借 playProgress 的节拍重算 duration（Media3 加载完成后可得），C.TIME_UNSET 归零
+    override val duration: StateFlow<Long> =
+        pc.playProgress.map {
+            val d = pc.mediaController.duration
+            if (d == androidx.media3.common.C.TIME_UNSET) 0L else d
+        }.stateIn(scope, SharingStarted.Eagerly, 0L)
+
     override val bufferingPercent: StateFlow<Int> =
         pc.bufferingPercent.stateIn(scope, SharingStarted.Eagerly, 0)
 

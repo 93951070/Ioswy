@@ -8,11 +8,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,9 +23,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -32,6 +36,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,12 +53,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.wcy.music.compose.component.CoverImage
+import me.wcy.music.compose.component.DanmakuBar
+import me.wcy.music.compose.component.DanmakuOverlay
 import me.wcy.music.compose.theme.AppThemeColor
 import me.wcy.music.discover.comment.viewmodel.CommentViewModel
 import me.wcy.music.mv.detail.MvPlayerSurface
 import me.wcy.music.shared.bean.mvvideo.MvDetailInfoData
 import me.wcy.music.shared.bean.mvvideo.VideoCategory
 import me.wcy.music.shared.bean.mvvideo.VideoData
+import me.wcy.music.shared.net.CommentExtraNet
+import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.MvVideoExtraNet
 import me.wcy.music.shared.net.NetResult
 import me.wcy.music.shared.net.apiCall
@@ -317,8 +326,32 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
     var showCommentSheet by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
 
+    // 弹幕池来自视频评论区（comment/new type=5），开关状态切全屏不重置
+    var danmaku by remember(detail.vid) { mutableStateOf<List<String>>(emptyList()) }
+    var danmakuOn by remember { mutableStateOf(true) }
+
+    LaunchedEffect(detail.vid) {
+        danmaku = loadVideoDanmaku(detail.vid)
+    }
+
+    // 发送弹幕 = 发评论（comment 接口 type=5，与视频评论面板一致），成功乐观插到弹幕池头部
+    val scope = rememberCoroutineScope()
+    val onSendDanmaku: (String) -> Unit = { content ->
+        scope.launch {
+            val ok = runCatching {
+                DiscoverNet.addComment(detail.vid, type = 5, content = content).code == 200
+            }.getOrDefault(false)
+            if (ok) {
+                onMessage("弹幕发送成功")
+                danmaku = listOf(content) + danmaku
+            } else {
+                onMessage("发送失败")
+            }
+        }
+    }
+
     if (isFullscreen) {
-        // 全屏：页面内布局切换，只渲染播放器 + 退出按钮；iOS 横屏由 MvPlayerSurface 内部 LaunchedEffect 请求
+        // 全屏：页面内布局切换，只渲染播放器 + 返回按钮 + 底部弹幕条；iOS 横屏由 MvPlayerSurface 内部请求
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             if (detail.playUrl.isNotBlank()) {
                 MvPlayerSurface(
@@ -328,15 +361,38 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = "退出全屏",
-                tint = Color.White,
+            if (danmakuOn && danmaku.isNotEmpty()) {
+                DanmakuOverlay(
+                    danmaku = danmaku,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.3f)
+                )
+            }
+            IconButton(
+                onClick = { isFullscreen = false },
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(12.dp)
-                    .size(28.dp)
-                    .clickable { isFullscreen = false }
+                    .statusBarsPadding()
+                    .padding(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "退出全屏",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            DanmakuBar(
+                danmakuOn = danmakuOn,
+                onToggle = { danmakuOn = !danmakuOn },
+                onSend = onSendDanmaku,
+                dark = true,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .navigationBarsPadding()
             )
         }
     } else {
@@ -353,14 +409,33 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
             }
             item {
                 if (detail.playUrl.isNotBlank()) {
-                    MvPlayerSurface(
-                        url = detail.playUrl,
-                        isFullscreen = false,
-                        onToggleFullscreen = { isFullscreen = true },
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(210.dp)
                             .background(Color.Black)
+                    ) {
+                        MvPlayerSurface(
+                            url = detail.playUrl,
+                            isFullscreen = false,
+                            onToggleFullscreen = { isFullscreen = true },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        if (danmakuOn && danmaku.isNotEmpty()) {
+                            DanmakuOverlay(
+                                danmaku = danmaku,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(0.3f)
+                            )
+                        }
+                    }
+                    DanmakuBar(
+                        danmakuOn = danmakuOn,
+                        onToggle = { danmakuOn = !danmakuOn },
+                        onSend = onSendDanmaku,
+                        dark = false
                     )
                 } else {
                     Box(
@@ -610,6 +685,17 @@ private fun EmptyHint(text: String) {
             .wrapContentSize(Alignment.Center)
             .padding(vertical = 32.dp)
     )
+}
+
+/** GET /comment/new type=5：弹幕池取第一页热评+评论内容 */
+private suspend fun loadVideoDanmaku(vid: String): List<String> {
+    return runCatching {
+        CommentExtraNet.getCommentNew(vid, type = 5, pageSize = 20).data
+    }.getOrNull()?.let { data ->
+        (data.hotComments.orEmpty() + data.comments)
+            .map { it.content.trim() }
+            .filter { it.isNotBlank() }
+    }.orEmpty()
 }
 
 private fun formatDuration(ms: Long): String {
