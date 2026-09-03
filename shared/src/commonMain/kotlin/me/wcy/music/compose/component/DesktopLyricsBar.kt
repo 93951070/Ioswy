@@ -2,9 +2,11 @@ package me.wcy.music.compose.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -14,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import me.wcy.music.shared.lrc.LrcLine
 import me.wcy.music.shared.lrc.findCurrentLrcIndex
 import me.wcy.music.shared.lrc.parseLrc
@@ -22,9 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.wcy.music.compose.theme.Red500
+import kotlin.math.roundToInt
 
 /** 桌面歌词全局开关：进程级，任何页面顶层悬浮显示 */
 val desktopLyricsOn = androidx.compose.runtime.mutableStateOf(false)
@@ -94,12 +100,22 @@ fun DesktopLyricsOverlay(
         val lrc = runCatching { me.wcy.music.shared.net.DiscoverNet.getLrc(id) }.getOrNull()
         if (lrc?.code == 200 && lrc.lrc.isValid()) lrcLines = parseLrc(lrc.lrc.lyric)
     }
+    // 拖动偏移（px），初始居中偏下
+    var dragOffset by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Offset(0f, 0f)) }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         DesktopLyricsBar(
             currentLine = currentLrcLine(lrcLines, progress),
             fallbackText = song?.let { s -> "${s.name} - ${s.ar.firstOrNull()?.name ?: ""}" } ?: "",
             onTap = onOpenPlaying,
-            modifier = Modifier.padding(bottom = 90.dp)
+            modifier = Modifier
+                .padding(bottom = 90.dp)
+                .pointerInput(Unit) {
+                    detectDragGestures(onDragEnd = {}) { change, dragAmount ->
+                        change.consume()
+                        dragOffset += dragAmount
+                    }
+                }
+                .offset { androidx.compose.ui.unit.IntOffset(dragOffset.x.roundToInt(), dragOffset.y.roundToInt()) }
         )
     }
 }

@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import me.wcy.music.common.bean.SongData
+import me.wcy.music.shared.lrc.LrcLine
+import me.wcy.music.shared.lrc.findCurrentLrcIndex
+import me.wcy.music.shared.lrc.parseLrc
 import me.wcy.music.shared.net.DiscoverNet
 import me.wcy.music.shared.net.apiCall
 import platform.AVFAudio.*
@@ -344,21 +347,27 @@ class IosPlayerEngine : PlayerEngine {
             put(MPNowPlayingInfoPropertyPlaybackRate, NSNumber(if (_isPlaying.value) 1.0 else 0.0))
             // 锁屏/控制中心歌名下方小字显示当前歌词行（桌面歌词后台化的系统层近似）
             // MPMediaItemPropertySubtitle 常量 K/N 未导出，字面值即 "subtitle"
-            nowPlayingSubtitle?.takeIf { it.isNotBlank() }?.let {
+            currentLrcLine()?.let {
                 put("subtitle", it)
             }
         }
         MPNowPlayingInfoCenter.defaultCenter().nowPlayingInfo = info
     }
 
-    /** 系统媒体组件当前歌词行；置 null 清除。更新后立即刷新 nowPlayingInfo */
-    fun updateNowPlayingSubtitle(line: String?) {
-        if (nowPlayingSubtitle == line) return
-        nowPlayingSubtitle = line
+    // 锁屏/控制中心歌词行：UI 把解析好的歌词推到引擎，0.5s 进度回调里按进度取当前行，
+    // 这样 App 退到后台、Compose 停止重组时，歌词仍能随播放进度持续刷新（跨 App 悬浮在 iOS 不可行的系统层近似）
+    private var lrcLines: List<LrcLine> = emptyList()
+
+    fun setLrcLines(lines: List<LrcLine>) {
+        lrcLines = lines
         updateNowPlaying()
     }
 
-    private var nowPlayingSubtitle: String? = null
+    private fun currentLrcLine(): String? {
+        if (lrcLines.isEmpty()) return null
+        val idx = findCurrentLrcIndex(lrcLines, (currentElapsedSeconds() * 1000).toLong())
+        return lrcLines.getOrNull(idx)?.text?.takeIf { it.isNotBlank() }
+    }
 
     private fun currentElapsedSeconds(): Double {
         return player.currentTime().useContents {

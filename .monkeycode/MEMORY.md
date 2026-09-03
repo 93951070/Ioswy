@@ -145,3 +145,15 @@ Entries discovered by the Agent during task execution should follow this format:
   - 分页拉全量接口用 SongListData.songs 判空停止；limit=800 一页，offset=累计 size
   - 应用重启首请求易遇一次性网络未就绪失败：MineViewModel.updatePlaylist 用 repeat(2)+delay(1200) 兜底重试一次，避免「重启须点一下才加载」
 
+[Project Knowledge Summary]
+- Date: 2026-09-03
+- Context: 实现桌面歌词时厘清跨 App 悬浮的系统能力边界
+- Category: Troubleshooting & Debugging | Environment Configuration
+- Instructions:
+  - iOS 系统级禁止在任意其他 App 之上悬浮窗口（无 API、审核不过），网易云/QQ音乐的 iOS「桌面歌词」= App 内歌词页 + 锁屏/控制中心歌词行（MPNowPlayingInfoCenter 的 subtitle 小字），并非真悬浮。跨 App 悬浮歌词是 Android 专属（android.permission.SYSTEM_ALERT_WINDOW + WindowManager TYPE_APPLICATION_OVERLAY）
+  - Android「桌面歌词悬浮窗」架构：MusicService(:MediaSessionService，播放期间前台常驻) 持有 LyricFloatWindow（app 模块原生 View，非 Compose），用 WindowManager.addView 挂 TYPE_APPLICATION_OVERLAY，观察 PlayerController.currentSong/playProgress + DiscoverNet.getLrc 拉歌词；可拖动/点击进播放页/关闭；desktopLyricsOn 开关经 SnapshotStateObserver.observeReads(scope, onValueChangedForScope, block) 触发 syncLyricWindow 显示/隐藏
+  - MusicService 获取 PlayerController：import me.wcy.music.service.PlayServiceModule.playerController 扩展（Application.playerController()），不在 Service 里直接 new
+  - Compose runtime 1.7.x SnapshotStateObserver 无 addObservedState/dispose；用 observeReads(scope, onValueChangedForScope, block)，清理用 stop()+clear()；onValueChangedForScope 回调签名带 scope 参数可忽略
+  - Android 端开启桌面歌词需引导用户到 Settings.ACTION_MANAGE_OVERLAY_PERMISSION（Settings.canDrawOverlays 判断），MainActivity.toggleDesktopLyrics 已处理
+  - iOS 锁屏歌词后台有效的正确做法：歌词行由引擎驱动，UI setLrcLines(LrcLine) 推到 IosPlayerEngine，0.5s AVPlayer 周期回调 updateNowPlaying() 里按进度取当前行写 subtitle——Compose 只在 App 前台推一次歌词，后台停止重组仍能随进度刷新。替代旧的 Compose LaunchedEffect 逐帧推 subtitle（后台会冻结）
+

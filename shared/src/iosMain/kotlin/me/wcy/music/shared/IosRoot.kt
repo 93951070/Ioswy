@@ -75,7 +75,6 @@ import me.wcy.music.common.bean.PlaylistData
 import me.wcy.music.common.bean.SongData
 import me.wcy.music.compose.component.DesktopLyricsOverlay
 import me.wcy.music.compose.component.PlayBar
-import me.wcy.music.compose.component.currentLrcLine
 import me.wcy.music.compose.component.desktopLyricsOn
 import me.wcy.music.compose.theme.AppThemeColor
 import me.wcy.music.compose.theme.MusicTheme
@@ -735,19 +734,13 @@ fun IosRoot() {
                 )
             }
 
-            // 系统媒体组件歌词行：当前歌词随进度推到锁屏/控制中心（subtitle 小字）
+            // 系统媒体组件歌词行：解析好的歌词推给引擎，0.5s 进度回调在锁屏/控制中心持续刷新（后台也有效）
             val sysSong = engine.currentSong.collectAsState().value
-            val sysProgress = engine.playProgress.collectAsState().value
-            var sysLrcLines by remember { mutableStateOf(listOf<LrcLine>()) }
             LaunchedEffect(sysSong?.id) {
-                sysLrcLines = emptyList()
-                engine.updateNowPlayingSubtitle(null)
+                engine.setLrcLines(emptyList())
                 val song = sysSong ?: return@LaunchedEffect
                 val lyric = runCatching { fetchLyrics(song) }.getOrNull() ?: return@LaunchedEffect
-                sysLrcLines = parseLrc(lyric)
-            }
-            LaunchedEffect(sysLrcLines, sysProgress) {
-                engine.updateNowPlayingSubtitle(currentLrcLine(sysLrcLines, sysProgress)?.text)
+                engine.setLrcLines(parseLrc(lyric))
             }
 
             ToastOverlay(message)

@@ -41,9 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.wcy.music.R
 import me.wcy.music.account.service.UserService
-import me.wcy.music.compose.component.DesktopLyricsOverlay
 import me.wcy.music.compose.component.PlayBar
-import me.wcy.music.compose.component.desktopLyricsOn
+import me.wcy.music.compose.ui.homePageState
 import androidx.compose.ui.platform.LocalContext
 import me.wcy.music.consts.RoutePath
 import me.wcy.router.CRouter
@@ -160,13 +159,8 @@ fun MainScreen(
         }
     }
 
-        // 桌面歌词悬浮条：点条进播放页
-        if (desktopLyricsOn.value) {
-            DesktopLyricsOverlay(
-                engine = playerEngine,
-                onOpenPlaying = onOpenPlaying
-            )
-        }
+        // 桌面歌词改用系统悬浮窗（MusicService 持跨 App Window），不再 App 内渲染
+        // 见 LyricFloatWindow.kt + MusicService.syncLyricWindow
     }
 }
 

@@ -266,9 +266,7 @@ class MainActivity : BaseMusicActivity() {
                 timerDialog()
             }
             R.id.action_desktop_lyrics -> {
-                me.wcy.music.compose.component.desktopLyricsOn.value =
-                    !me.wcy.music.compose.component.desktopLyricsOn.value
-                toast(if (me.wcy.music.compose.component.desktopLyricsOn.value) "桌面歌词已开启" else "桌面歌词已关闭")
+                toggleDesktopLyrics()
             }
             R.id.action_logout -> {
                 logout()
@@ -322,6 +320,22 @@ class MainActivity : BaseMusicActivity() {
                 userService.logout()
             }
         }
+    }
+
+    private fun toggleDesktopLyrics() {
+        val on = !me.wcy.music.compose.component.desktopLyricsOn.value
+        if (on && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M
+            && !android.provider.Settings.canDrawOverlays(this)) {
+            toast("开启桌面歌词需先授予悬浮窗权限")
+            val intent = Intent(
+                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                android.net.Uri.parse("package:${packageName}")
+            )
+            startActivity(intent)
+            return
+        }
+        me.wcy.music.compose.component.desktopLyricsOn.value = on
+        toast(if (on) "桌面歌词已开启，可在其他应用上方显示" else "桌面歌词已关闭")
     }
 
     private fun exitApp() {
