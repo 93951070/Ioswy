@@ -126,3 +126,11 @@ Entries discovered by the Agent during task execution should follow this format:
   - 测试 cookie 对歌曲发表/回复评论（comment t=1/t=2）均被 401「无法评论该资源」拒绝，是账号权限限制；发送链路只能验证参数形态与错误信息冒泡
   - CommentItem bean 早期没有 replyCount 字段（接口实际有），新增评论展示字段前先 curl 核对再补 bean
 
+[Project Knowledge Summary]
+- Date: 2026-09-03
+- Context: 排查「最近播放」页面周排行/累计区块空白时 curl 实测发现
+- Category: Troubleshooting & Debugging | Environment Configuration
+- Instructions:
+  - user/record 接口字段名与内容错位：type=0 时周数据放在 allData 键，type=1 时累计数据放在 weekData 键——解析时按 type 反读，勿按字段名直觉取
+  - 本地 NeteaseCloudMusicApi 无 play/record 路由（404），最近播放歌曲记录只有 user/record
+

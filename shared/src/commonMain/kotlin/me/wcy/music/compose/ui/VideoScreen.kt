@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -326,6 +327,18 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
     var showCommentSheet by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
 
+    // 控制层（返回键+弹幕条）显隐：点画面切换，播放中 3.5s 自动隐藏，暂停/输入聚焦保持显示
+    var controlsVisible by remember(isFullscreen) { mutableStateOf(true) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var danmakuInputFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(controlsVisible, isPlaying, danmakuInputFocused) {
+        if (controlsVisible && isPlaying && !danmakuInputFocused) {
+            delay(3500)
+            controlsVisible = false
+        }
+    }
+    val onToggleControls: () -> Unit = { controlsVisible = !controlsVisible }
+
     // 弹幕池来自视频评论区（comment/new type=5），开关状态切全屏不重置
     var danmaku by remember(detail.vid) { mutableStateOf<List<String>>(emptyList()) }
     var danmakuOn by remember { mutableStateOf(true) }
@@ -358,6 +371,8 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
                     url = detail.playUrl,
                     isFullscreen = true,
                     onToggleFullscreen = { isFullscreen = false },
+                    onTap = onToggleControls,
+                    onPlayingChange = { isPlaying = it },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -370,30 +385,33 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
                         .fillMaxHeight(0.3f)
                 )
             }
-            IconButton(
-                onClick = { isFullscreen = false },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "退出全屏",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+            if (controlsVisible) {
+                IconButton(
+                    onClick = { isFullscreen = false },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "退出全屏",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                DanmakuBar(
+                    danmakuOn = danmakuOn,
+                    onToggle = { danmakuOn = !danmakuOn },
+                    onSend = onSendDanmaku,
+                    onInputFocusChanged = { danmakuInputFocused = it },
+                    dark = true,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .navigationBarsPadding()
                 )
             }
-            DanmakuBar(
-                danmakuOn = danmakuOn,
-                onToggle = { danmakuOn = !danmakuOn },
-                onSend = onSendDanmaku,
-                dark = true,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .navigationBarsPadding()
-            )
         }
     } else {
         LazyColumn(
@@ -419,6 +437,8 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
                             url = detail.playUrl,
                             isFullscreen = false,
                             onToggleFullscreen = { isFullscreen = true },
+                            onTap = onToggleControls,
+                            onPlayingChange = { isPlaying = it },
                             modifier = Modifier.fillMaxSize()
                         )
                         if (danmakuOn && danmaku.isNotEmpty()) {
@@ -431,12 +451,15 @@ private fun VideoDetailContent(viewModel: VideoViewModel, onMessage: (String) ->
                             )
                         }
                     }
-                    DanmakuBar(
-                        danmakuOn = danmakuOn,
-                        onToggle = { danmakuOn = !danmakuOn },
-                        onSend = onSendDanmaku,
-                        dark = false
-                    )
+                    if (controlsVisible) {
+                        DanmakuBar(
+                            danmakuOn = danmakuOn,
+                            onToggle = { danmakuOn = !danmakuOn },
+                            onSend = onSendDanmaku,
+                            onInputFocusChanged = { danmakuInputFocused = it },
+                            dark = false
+                        )
+                    }
                 } else {
                     Box(
                         modifier = Modifier

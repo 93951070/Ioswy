@@ -15,6 +15,8 @@ actual fun MvPlayerSurface(
     url: String,
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,
+    onTap: () -> Unit,
+    onPlayingChange: (Boolean) -> Unit,
     modifier: Modifier
 ) {
     val context = LocalContext.current

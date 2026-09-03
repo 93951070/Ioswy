@@ -80,6 +80,7 @@ import me.wcy.music.compose.component.desktopLyricsOn
 import me.wcy.music.compose.theme.AppThemeColor
 import me.wcy.music.compose.theme.MusicTheme
 import me.wcy.music.compose.ui.DiscoverScreen
+import me.wcy.music.compose.ui.homePageState
 import me.wcy.music.compose.ui.LocalMusicScreen
 import me.wcy.music.compose.ui.LocalSongData
 import me.wcy.music.compose.ui.MineScreen
@@ -459,19 +460,30 @@ fun IosRoot() {
                         }
                     }
 
-                    PlayBar(
-                        playerEngine = engine,
-                        onOpenPlaying = { push(IosPage.Playing) },
-                        // TODO 播放列表面板暂并入播放页（内含列表 Sheet）
-                        onOpenPlaylist = { push(IosPage.Playing) }
-                    )
+                    // 心动 tab（Discover 首页 pager 停在「心动」页）时底栏区域整体沉浸黑
+                    val heartDark = currentTab == IosTab.Discover && homePageState.value == 0
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (heartDark) Color.Black else Color.Transparent)
+                    ) {
+                        PlayBar(
+                            playerEngine = engine,
+                            onOpenPlaying = { push(IosPage.Playing) },
+                            // TODO 播放列表面板暂并入播放页（内含列表 Sheet）
+                            onOpenPlaylist = { push(IosPage.Playing) }
+                        )
 
-                    HorizontalDivider(color = AppThemeColor.Divider)
+                        HorizontalDivider(
+                            color = if (heartDark) Color.White.copy(alpha = 0.08f) else AppThemeColor.Divider
+                        )
 
-                    BottomTabBar(
-                        current = currentTab,
-                        onSelect = { currentTab = it }
-                    )
+                        BottomTabBar(
+                            current = currentTab,
+                            dark = heartDark,
+                            onSelect = { currentTab = it }
+                        )
+                    }
                 }
             } else {
                 when (page) {
@@ -815,6 +827,7 @@ fun MainViewController() = ComposeUIViewController {
 @Composable
 private fun BottomTabBar(
     current: IosTab,
+    dark: Boolean,
     onSelect: (IosTab) -> Unit
 ) {
     // 半透明白模拟毛玻璃（网易云底栏效果），真背景模糊需平台 GraphicsLayer，代价过高
@@ -822,7 +835,7 @@ private fun BottomTabBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp)
-            .background(Color.White.copy(alpha = 0.82f))
+            .background(if (dark) Color.Black else Color.White.copy(alpha = 0.82f))
     ) {
         IosTab.entries.forEach { tab ->
             Box(
@@ -834,7 +847,13 @@ private fun BottomTabBar(
             ) {
                 Text(
                     text = tab.label,
-                    color = if (current == tab) AppThemeColor.ThemeColor else AppThemeColor.TextH2,
+                    color = if (current == tab) {
+                        AppThemeColor.ThemeColor
+                    } else if (dark) {
+                        Color.White.copy(alpha = 0.5f)
+                    } else {
+                        AppThemeColor.TextH2
+                    },
                     fontSize = 13.sp
                 )
             }

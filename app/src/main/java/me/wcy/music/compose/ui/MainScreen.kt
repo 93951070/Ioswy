@@ -135,18 +135,29 @@ fun MainScreen(
             }
         }
 
-        PlayBar(
-            playerEngine = playerEngine,
-            onOpenPlaying = onOpenPlaying,
-            onOpenPlaylist = onOpenPlaylist
-        )
+        // 心动 tab（Discover pager 停在「心动」页）时底栏区域整体沉浸黑
+        val heartDark = currentTab == NaviTab.Discover && homePageState.value == 0
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(if (heartDark) Color.Black else Color.Transparent)
+        ) {
+            PlayBar(
+                playerEngine = playerEngine,
+                onOpenPlaying = onOpenPlaying,
+                onOpenPlaylist = onOpenPlaylist
+            )
 
-        HorizontalDivider(color = AppThemeColor.Divider)
+            HorizontalDivider(
+                color = if (heartDark) Color.White.copy(alpha = 0.08f) else AppThemeColor.Divider
+            )
 
-        BottomTabBar(
-            current = currentTab,
-            onSelect = { currentTab = it }
-        )
+            BottomTabBar(
+                current = currentTab,
+                dark = heartDark,
+                onSelect = { currentTab = it }
+            )
+        }
     }
 
         // 桌面歌词悬浮条：点条进播放页
@@ -162,6 +173,7 @@ fun MainScreen(
 @Composable
 private fun BottomTabBar(
     current: NaviTab,
+    dark: Boolean,
     onSelect: (NaviTab) -> Unit
 ) {
     // 半透明白模拟毛玻璃（网易云底栏效果），真背景模糊需平台 GraphicsLayer，代价过高
@@ -169,10 +181,10 @@ private fun BottomTabBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(54.dp)
-            .background(Color.White.copy(alpha = 0.82f))
+            .background(if (dark) Color.Black else Color.White.copy(alpha = 0.82f))
     ) {
-        NaviTabItem(NaviTab.Discover, current, onSelect)
-        NaviTabItem(NaviTab.Mine, current, onSelect)
+        NaviTabItem(NaviTab.Discover, current, dark, onSelect)
+        NaviTabItem(NaviTab.Mine, current, dark, onSelect)
     }
 }
 
@@ -180,6 +192,7 @@ private fun BottomTabBar(
 private fun androidx.compose.foundation.layout.RowScope.NaviTabItem(
     tab: NaviTab,
     current: NaviTab,
+    dark: Boolean,
     onSelect: (NaviTab) -> Unit
 ) {
     Row(
@@ -192,7 +205,13 @@ private fun androidx.compose.foundation.layout.RowScope.NaviTabItem(
     ) {
         Text(
             text = tab.name,
-            color = if (current == tab) AppThemeColor.ThemeColor else AppThemeColor.TextH2,
+            color = if (current == tab) {
+                AppThemeColor.ThemeColor
+            } else if (dark) {
+                Color.White.copy(alpha = 0.5f)
+            } else {
+                AppThemeColor.TextH2
+            },
             fontSize = 13.sp
         )
     }

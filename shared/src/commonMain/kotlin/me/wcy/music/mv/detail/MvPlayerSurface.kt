@@ -14,5 +14,7 @@ expect fun MvPlayerSurface(
     url: String,
     isFullscreen: Boolean = false,
     onToggleFullscreen: () -> Unit = {},
+    onTap: () -> Unit = {},
+    onPlayingChange: (Boolean) -> Unit = {},
     modifier: Modifier
 )

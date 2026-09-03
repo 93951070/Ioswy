@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -89,6 +90,7 @@ fun MineScreen(
     val likePlaylist by viewModel.likePlaylist.collectAsState()
     val myPlaylists by viewModel.myPlaylists.collectAsState()
     val collectPlaylists by viewModel.collectPlaylists.collectAsState()
+    val playlistFailed by viewModel.playlistFailed.collectAsState()
     val scope = rememberCoroutineScope()
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
@@ -346,67 +348,90 @@ fun MineScreen(
         }
 
         val like = likePlaylist
-        if (like != null) {
+        if (profile != null) {
             item {
                 SectionTitle("我喜欢的音乐")
             }
             item {
-                PlaylistRow(
-                    playlists = listOf(like),
-                    onItemClick = { playlist ->
-                        onOpenPlaylistDetail(playlist, false, true)
-                    }
-                )
+                if (like != null) {
+                    PlaylistRow(
+                        playlists = listOf(like),
+                        onItemClick = { playlist ->
+                            onOpenPlaylistDetail(playlist, false, true)
+                        }
+                    )
+                } else {
+                    PlaylistEmptyHint(
+                        failed = playlistFailed,
+                        onRetry = { viewModel.updatePlaylist() }
+                    )
+                }
             }
         }
 
-        if (myPlaylists.isNotEmpty()) {
+        if (profile != null) {
             item {
                 SectionTitle(
                     "创建歌单(${myPlaylists.size})",
                     onAddClick = { showCreateDialog = true },
                     onImportClick = onOpenImport,
-                    onManageClick = { manageMode = !manageMode },
+                    onManageClick = if (myPlaylists.isNotEmpty()) {
+                        { manageMode = !manageMode }
+                    } else null,
                     manageActive = manageMode
                 )
             }
             item {
-                PlaylistRow(
-                    playlists = myPlaylists,
-                    manageMode = manageMode,
-                    onItemClick = { playlist ->
-                        if (manageMode) {
-                            renameText = playlist.name
-                            renameTarget = playlist
-                        } else {
-                            onOpenPlaylistDetail(playlist, true, false)
-                        }
-                    },
-                    onDeleteClick = { playlist -> deleteTarget = playlist }
-                )
+                if (myPlaylists.isNotEmpty()) {
+                    PlaylistRow(
+                        playlists = myPlaylists,
+                        manageMode = manageMode,
+                        onItemClick = { playlist ->
+                            if (manageMode) {
+                                renameText = playlist.name
+                                renameTarget = playlist
+                            } else {
+                                onOpenPlaylistDetail(playlist, true, false)
+                            }
+                        },
+                        onDeleteClick = { playlist -> deleteTarget = playlist }
+                    )
+                } else {
+                    PlaylistEmptyHint(
+                        failed = playlistFailed,
+                        onRetry = { viewModel.updatePlaylist() }
+                    )
+                }
             }
         }
 
-        if (collectPlaylists.isNotEmpty()) {
+        if (profile != null && (collectPlaylists.isNotEmpty() || myPlaylists.isNotEmpty())) {
             item {
                 SectionTitle("我的收藏(${collectPlaylists.size})")
             }
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AppThemeColor.Card)
-                ) {
-                    collectPlaylists.forEach { playlist ->
-                        PlaylistItemRow(
-                            playlist = playlist,
-                            onUnsubscribeClick = { unsubTarget = playlist }
-                        ) {
-                            onOpenPlaylistDetail(playlist, false, false)
+                if (collectPlaylists.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(AppThemeColor.Card)
+                    ) {
+                        collectPlaylists.forEach { playlist ->
+                            PlaylistItemRow(
+                                playlist = playlist,
+                                onUnsubscribeClick = { unsubTarget = playlist }
+                            ) {
+                                onOpenPlaylistDetail(playlist, false, false)
+                            }
                         }
                     }
+                } else {
+                    PlaylistEmptyHint(
+                        failed = playlistFailed,
+                        onRetry = { viewModel.updatePlaylist() }
+                    )
                 }
             }
         }
@@ -426,6 +451,7 @@ private fun MineTitleBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -646,6 +672,22 @@ private fun MenuCardRow(
             modifier = Modifier.size(20.dp)
         )
     }
+}
+
+@Composable
+private fun PlaylistEmptyHint(
+    failed: Boolean,
+    onRetry: () -> Unit
+) {
+    Text(
+        text = if (failed) "歌单加载失败，点击重试" else "暂无歌单",
+        color = if (failed) AppThemeColor.ThemeColor else AppThemeColor.TextH2,
+        fontSize = 13.sp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable(onClick = onRetry)
+    )
 }
 
 @Composable

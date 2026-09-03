@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -53,6 +54,7 @@ fun DanmakuBar(
     onToggle: () -> Unit,
     onSend: (String) -> Unit,
     dark: Boolean = true,
+    onInputFocusChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var text by remember { mutableStateOf("") }
@@ -85,6 +87,10 @@ fun DanmakuBar(
             singleLine = true,
             placeholder = { Text("发个弹幕见证当下", fontSize = 13.sp) },
             shape = PillShape,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp)
+                .onFocusChanged { onInputFocusChanged(it.isFocused) },
             colors = if (dark) {
                 OutlinedTextFieldDefaults.colors(
                     focusedTextColor = Color.White,
@@ -101,9 +107,6 @@ fun DanmakuBar(
                 OutlinedTextFieldDefaults.colors()
             },
             textStyle = TextStyle(fontSize = 13.sp),
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 8.dp)
         )
         Text(
             text = "发送",

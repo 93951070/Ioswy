@@ -96,6 +96,8 @@ actual fun MvPlayerSurface(
     url: String,
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,
+    onTap: () -> Unit,
+    onPlayingChange: (Boolean) -> Unit,
     modifier: Modifier
 ) {
     // player 实例保持稳定：url 变化走 replaceCurrentItem，避免重建播放器丢状态
@@ -122,7 +124,11 @@ actual fun MvPlayerSurface(
                     duration = if (timescale != 0) (value.toDouble() / timescale).toFloat() else 0f
                 }
             }
-            isPlaying = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
+            val playing = player.timeControlStatus == AVPlayerTimeControlStatusPlaying
+            if (playing != isPlaying) {
+                isPlaying = playing
+                onPlayingChange(playing)
+            }
         }
     }
 
@@ -172,7 +178,10 @@ actual fun MvPlayerSurface(
         modifier = modifier
             .background(Color.Black)
             .pointerInput(player) {
-                detectTapGestures { showOverlay = !showOverlay }
+                detectTapGestures {
+                    showOverlay = !showOverlay
+                    onTap()
+                }
             }
     ) {
         UIKitView(

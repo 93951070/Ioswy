@@ -32,7 +32,8 @@ class RecentPlayViewModel : ViewModel() {
             _loaded.value = true
             return
         }
-        val list = if (type == "0") data.weekData else data.allData
+        // ponytail: user/record 字段名与内容错位——type=0 时周数据在 allData，type=1 时累计数据在 weekData（curl 实测为准）
+        val list = if (type == "0") data.allData else data.weekData
         if (type == "0") weekData = list else allData = list
         _items.value = list
         _loaded.value = true

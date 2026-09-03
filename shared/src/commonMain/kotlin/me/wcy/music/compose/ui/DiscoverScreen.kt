@@ -51,8 +51,9 @@ import me.wcy.music.shared.player.PlayerEngine
 
 private val HOME_TABS = listOf("心动", "推荐", "音乐", "播客", "分类")
 
-/** 进程级首页选中 tab：DiscoverScreen 被销毁重建（push 二级页）后恢复离开时位置 */
-private val homePageState = mutableStateOf(0)
+/** 进程级首页选中 tab：DiscoverScreen 被销毁重建（push 二级页）后恢复离开时位置。
+ *  Android 底栏黑化需读取此值（Discover pager 停在 0=心动页），故公开 */
+val homePageState = mutableStateOf(0)
 
 @Composable
 fun DiscoverScreen(

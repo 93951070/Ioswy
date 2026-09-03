@@ -28,6 +28,8 @@ class MineViewModel(
     val myPlaylists = _myPlaylists.asStateFlow()
     private val _collectPlaylists = MutableStateFlow<List<PlaylistData>>(emptyList())
     val collectPlaylists = _collectPlaylists.asStateFlow()
+    private val _playlistFailed = MutableStateFlow(false)
+    val playlistFailed = _playlistFailed.asStateFlow()
 
     private var updateJob: Job? = null
 
@@ -40,6 +42,7 @@ class MineViewModel(
                     _likePlaylist.value = null
                     _myPlaylists.value = emptyList()
                     _collectPlaylists.value = emptyList()
+                    _playlistFailed.value = false
                 }
             }
         }
@@ -66,8 +69,11 @@ class MineViewModel(
             }
             val data = res.getOrNull()
             if (data != null && data.code == 200) {
+                _playlistFailed.value = false
                 notifyPlaylist(uid, data.playlists)
                 writePlaylistCache(data.playlists)
+            } else {
+                _playlistFailed.value = _likePlaylist.value == null && _myPlaylists.value.isEmpty()
             }
         }
     }

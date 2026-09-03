@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.wcy.music.compose.component.CoverImage
 import me.wcy.music.compose.component.DanmakuBar
@@ -107,6 +108,18 @@ fun MvDetailScreen(
 
     var isFullscreen by remember { mutableStateOf(false) }
 
+    // 控制层（返回键+弹幕条）显隐：点画面切换，播放中 3.5s 自动隐藏，暂停/输入聚焦保持显示
+    var controlsVisible by remember(isFullscreen) { mutableStateOf(true) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var danmakuInputFocused by remember { mutableStateOf(false) }
+    LaunchedEffect(controlsVisible, isPlaying, danmakuInputFocused) {
+        if (controlsVisible && isPlaying && !danmakuInputFocused) {
+            delay(3500)
+            controlsVisible = false
+        }
+    }
+    val onToggleControls: () -> Unit = { controlsVisible = !controlsVisible }
+
     if (isFullscreen) {
         // 全屏：页面内布局切换，只渲染播放器 + 左上角退出按钮 + 底部弹幕条，其余内容不渲染
         // ponytail: 全屏切换会重建播放器（进度从头播）；要保进度需把 player 提升为跨布局共享状态
@@ -117,32 +130,37 @@ fun MvDetailScreen(
                 onToggleFullscreen = { isFullscreen = false },
                 danmaku = danmaku,
                 danmakuOn = danmakuOn,
+                onTap = onToggleControls,
+                onPlayingChange = { isPlaying = it },
                 modifier = Modifier.fillMaxSize()
             )
-            IconButton(
-                onClick = { isFullscreen = false },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowBack,
-                    contentDescription = "退出全屏",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+            if (controlsVisible) {
+                IconButton(
+                    onClick = { isFullscreen = false },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowBack,
+                        contentDescription = "退出全屏",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                DanmakuBar(
+                    danmakuOn = danmakuOn,
+                    onToggle = { danmakuOn = !danmakuOn },
+                    onSend = onSendDanmaku,
+                    onInputFocusChanged = { danmakuInputFocused = it },
+                    dark = true,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .navigationBarsPadding()
                 )
             }
-            DanmakuBar(
-                danmakuOn = danmakuOn,
-                onToggle = { danmakuOn = !danmakuOn },
-                onSend = onSendDanmaku,
-                dark = true,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .navigationBarsPadding()
-            )
         }
     } else {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -158,14 +176,19 @@ fun MvDetailScreen(
                         onToggleFullscreen = { isFullscreen = true },
                         danmaku = danmaku,
                         danmakuOn = danmakuOn,
+                        onTap = onToggleControls,
+                        onPlayingChange = { isPlaying = it },
                         modifier = Modifier.fillMaxWidth().height(210.dp)
                     )
-                    DanmakuBar(
-                        danmakuOn = danmakuOn,
-                        onToggle = { danmakuOn = !danmakuOn },
-                        onSend = onSendDanmaku,
-                        dark = false
-                    )
+                    if (controlsVisible) {
+                        DanmakuBar(
+                            danmakuOn = danmakuOn,
+                            onToggle = { danmakuOn = !danmakuOn },
+                            onSend = onSendDanmaku,
+                            onInputFocusChanged = { danmakuInputFocused = it },
+                            dark = false
+                        )
+                    }
                 } else {
                     MvPlayerCover(cover = mv?.cover ?: "")
                 }
@@ -374,6 +397,8 @@ private fun MvPlayerArea(
     onToggleFullscreen: () -> Unit,
     danmaku: List<String>,
     danmakuOn: Boolean,
+    onTap: () -> Unit,
+    onPlayingChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.background(Color.Black)) {
@@ -381,6 +406,8 @@ private fun MvPlayerArea(
             url = url,
             isFullscreen = isFullscreen,
             onToggleFullscreen = onToggleFullscreen,
+            onTap = onTap,
+            onPlayingChange = onPlayingChange,
             modifier = Modifier.fillMaxSize()
         )
         if (danmakuOn && danmaku.isNotEmpty()) {
